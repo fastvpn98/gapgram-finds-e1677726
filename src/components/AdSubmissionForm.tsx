@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Plus, X, ImageIcon } from "lucide-react";
+import { Loader2, Plus, X, ImageIcon, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -26,33 +27,64 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { CATEGORIES, CITIES, AGE_GROUPS } from "@/lib/constants";
+import { CATEGORIES, CITIES, AGE_GROUPS, TAGS } from "@/lib/constants";
 import { addAd } from "@/lib/ads";
+
+const MAX_DESCRIPTION_LENGTH = 300;
+const MAX_TAGS = 5;
+const MAX_CITIES = 5;
 
 const formSchema = z.object({
   category: z.string().min(1, "دسته‌بندی را انتخاب کنید"),
   name: z
     .string()
     .min(3, "نام باید حداقل ۳ کاراکتر باشد")
-    .max(100, "نام نباید بیش از ۱۰۰ کاراکتر باشد"),
+    .max(50, "نام نباید بیش از ۵۰ کاراکتر باشد"),
   text: z
     .string()
-    .min(10, "توضیحات باید حداقل ۱۰ کاراکتر باشد")
-    .max(500, "توضیحات نباید بیش از ۵۰۰ کاراکتر باشد"),
+    .min(20, "توضیحات باید حداقل ۲۰ کاراکتر باشد")
+    .max(MAX_DESCRIPTION_LENGTH, `توضیحات نباید بیش از ${MAX_DESCRIPTION_LENGTH} کاراکتر باشد`),
   telegramLink: z
     .string()
     .url("لینک معتبر وارد کنید")
-    .regex(/^https?:\/\/(t\.me|telegram\.me)\//, "لینک باید از تلگرام باشد"),
-  members: z.coerce.number().min(0, "تعداد اعضا معتبر نیست"),
-  imageUrl: z.string().url("لینک تصویر معتبر نیست").optional().or(z.literal("")),
+    .refine(
+      (val) => val.startsWith("https://t.me/"),
+      "لینک باید با https://t.me/ شروع شود"
+    ),
+  members: z.coerce
+    .number({ invalid_type_error: "عدد معتبر وارد کنید" })
+    .positive("تعداد اعضا باید مثبت باشد"),
+  imageUrl: z
+    .string()
+    .refine(
+      (val) => val === "" || val.startsWith("data:image/") || val.startsWith("https://"),
+      "فرمت تصویر معتبر نیست"
+    )
+    .optional()
+    .or(z.literal("")),
   cityTarget: z.enum(["all", "one", "multiple"]),
-  selectedCities: z.array(z.string()),
+  selectedCities: z
+    .array(z.string())
+    .max(MAX_CITIES, `حداکثر ${MAX_CITIES} شهر می‌توانید انتخاب کنید`),
   ageTarget: z.enum(["all", "list", "custom"]),
   selectedAgeGroups: z.array(z.string()),
-  minAge: z.coerce.number().min(0).max(120).optional(),
-  maxAge: z.coerce.number().min(0).max(120).optional(),
-  tags: z.array(z.string()),
-});
+  minAge: z.coerce.number().min(13, "حداقل سن ۱۳ سال است").optional().nullable(),
+  maxAge: z.coerce.number().max(120, "حداکثر سن ۱۲۰ سال است").optional().nullable(),
+  tags: z
+    .array(z.string())
+    .max(MAX_TAGS, `حداکثر ${MAX_TAGS} برچسب می‌توانید اضافه کنید`),
+}).refine(
+  (data) => {
+    if (data.ageTarget === "custom" && data.minAge && data.maxAge) {
+      return data.maxAge >= data.minAge;
+    }
+    return true;
+  },
+  {
+    message: "حداکثر سن باید بزرگتر یا مساوی حداقل سن باشد",
+    path: ["maxAge"],
+  }
+);
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -61,7 +93,7 @@ export function AdSubmissionForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTag, setCustomTag] = useState("");
-  const [imagePreview, setImagePreview] = useState<string>("");
+  const [imageDataUrl, setImageDataUrl] = useState<string>("");
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -76,8 +108,8 @@ export function AdSubmissionForm() {
       selectedCities: [],
       ageTarget: "all",
       selectedAgeGroups: [],
-      minAge: undefined,
-      maxAge: undefined,
+      minAge: null,
+      maxAge: null,
       tags: [],
     },
   });
@@ -86,11 +118,19 @@ export function AdSubmissionForm() {
   const watchCityTarget = form.watch("cityTarget");
   const watchAgeTarget = form.watch("ageTarget");
   const watchTags = form.watch("tags");
+  const watchCategory = form.watch("category");
 
   const handleAddTag = () => {
-    if (customTag.trim() && !watchTags.includes(customTag.trim())) {
-      form.setValue("tags", [...watchTags, customTag.trim()]);
+    const trimmedTag = customTag.trim();
+    if (trimmedTag && !watchTags.includes(trimmedTag) && watchTags.length < MAX_TAGS) {
+      form.setValue("tags", [...watchTags, trimmedTag]);
       setCustomTag("");
+    } else if (watchTags.length >= MAX_TAGS) {
+      toast({
+        title: "محدودیت برچسب",
+        description: `حداکثر ${MAX_TAGS} برچسب می‌توانید اضافه کنید`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -101,9 +141,31 @@ export function AdSubmissionForm() {
     );
   };
 
-  const handleImageUrlChange = (url: string) => {
-    form.setValue("imageUrl", url);
-    setImagePreview(url);
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "خطا",
+          description: "حجم فایل نباید بیشتر از ۵ مگابایت باشد",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setImageDataUrl(result);
+        form.setValue("imageUrl", result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageDataUrl("");
+    form.setValue("imageUrl", "");
   };
 
   const onSubmit = async (data: FormData) => {
@@ -119,17 +181,20 @@ export function AdSubmissionForm() {
           ? ["all"]
           : data.selectedAgeGroups;
 
+      const finalImageUrl = data.imageUrl || 
+        `https://picsum.photos/seed/${Date.now()}/400/300`;
+
       await addAd({
         category: data.category,
         name: data.name,
         text: data.text,
         telegramLink: data.telegramLink,
         members: data.members,
-        imageUrl: data.imageUrl || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=300&fit=crop",
+        imageUrl: finalImageUrl,
         cities,
         ageGroups,
-        minAge: data.ageTarget === "custom" ? data.minAge : undefined,
-        maxAge: data.ageTarget === "custom" ? data.maxAge : undefined,
+        minAge: data.ageTarget === "custom" ? data.minAge ?? undefined : undefined,
+        maxAge: data.ageTarget === "custom" ? data.maxAge ?? undefined : undefined,
         tags: data.tags,
       });
 
@@ -150,6 +215,8 @@ export function AdSubmissionForm() {
     }
   };
 
+  const selectedCategory = CATEGORIES.find((c) => c.value === watchCategory);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -159,7 +226,7 @@ export function AdSubmissionForm() {
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>دسته‌بندی</FormLabel>
+              <FormLabel>دسته‌بندی *</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -177,6 +244,11 @@ export function AdSubmissionForm() {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedCategory && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  دسته‌بندی انتخاب شده: {selectedCategory.label}
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -188,10 +260,11 @@ export function AdSubmissionForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>نام گروه یا کانال</FormLabel>
+              <FormLabel>نام گروه یا کانال *</FormLabel>
               <FormControl>
                 <Input placeholder="مثال: فروشگاه آنلاین دیجی‌کالا" {...field} />
               </FormControl>
+              <p className="text-xs text-muted-foreground">۳ تا ۵۰ کاراکتر</p>
               <FormMessage />
             </FormItem>
           )}
@@ -203,18 +276,21 @@ export function AdSubmissionForm() {
           name="text"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>توضیحات</FormLabel>
+              <FormLabel>توضیحات *</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="توضیحات آگهی خود را بنویسید..."
+                  placeholder="توضیحات آگهی خود را بنویسید... (حداقل ۲۰ کاراکتر)"
                   className="min-h-[100px] resize-none"
                   {...field}
                 />
               </FormControl>
               <div className="flex justify-between text-xs text-muted-foreground">
-                <FormMessage />
-                <span>{watchText.length}/500</span>
+                <span>حداقل ۲۰ کاراکتر</span>
+                <span className={watchText.length > MAX_DESCRIPTION_LENGTH ? "text-destructive" : ""}>
+                  {watchText.length}/{MAX_DESCRIPTION_LENGTH}
+                </span>
               </div>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -225,7 +301,7 @@ export function AdSubmissionForm() {
           name="telegramLink"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>لینک تلگرام</FormLabel>
+              <FormLabel>لینک تلگرام *</FormLabel>
               <FormControl>
                 <Input
                   placeholder="https://t.me/your_channel"
@@ -234,6 +310,7 @@ export function AdSubmissionForm() {
                   {...field}
                 />
               </FormControl>
+              <p className="text-xs text-muted-foreground">لینک باید با https://t.me/ شروع شود</p>
               <FormMessage />
             </FormItem>
           )}
@@ -245,60 +322,62 @@ export function AdSubmissionForm() {
           name="members"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>تعداد اعضا</FormLabel>
+              <FormLabel>تعداد اعضا *</FormLabel>
               <FormControl>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  dir="ltr"
-                  className="text-left"
-                  {...field}
-                />
+                <div className="relative">
+                  <Users className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    placeholder="مثال: 1000"
+                    dir="ltr"
+                    className="text-left pr-10"
+                    {...field}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Image URL */}
-        <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>لینک تصویر (اختیاری)</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="https://example.com/image.jpg"
-                  dir="ltr"
-                  className="text-left"
-                  {...field}
-                  onChange={(e) => handleImageUrlChange(e.target.value)}
+        {/* Image Upload */}
+        <div className="space-y-3">
+          <Label>تصویر (اختیاری)</Label>
+          <div className="flex flex-col gap-3">
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="cursor-pointer"
+            />
+            <input type="hidden" {...form.register("imageUrl")} value={imageDataUrl} />
+            
+            {imageDataUrl ? (
+              <div className="relative inline-block">
+                <img
+                  src={imageDataUrl}
+                  alt="پیش‌نمایش"
+                  className="h-32 w-48 object-cover rounded-lg border"
                 />
-              </FormControl>
-              {imagePreview && (
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="relative h-20 w-20 overflow-hidden rounded-lg border">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="h-full w-full object-cover"
-                      onError={() => setImagePreview("")}
-                    />
-                  </div>
-                  <span className="text-sm text-muted-foreground">پیش‌نمایش تصویر</span>
-                </div>
-              )}
-              {!imagePreview && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <ImageIcon className="h-4 w-4" />
-                  <span>تصویر پیش‌فرض استفاده خواهد شد</span>
-                </div>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-2 -left-2 h-6 w-6"
+                  onClick={handleRemoveImage}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <span className="block text-sm text-muted-foreground mt-1">پیش‌نمایش تصویر</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-lg border-dashed">
+                <ImageIcon className="h-5 w-5" />
+                <span>تصویر پیش‌فرض استفاده خواهد شد (حداکثر ۵ مگابایت)</span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* City Targeting */}
         <FormField
@@ -309,21 +388,26 @@ export function AdSubmissionForm() {
               <FormLabel>هدف‌گذاری شهر</FormLabel>
               <FormControl>
                 <RadioGroup
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    if (value === "all") {
+                      form.setValue("selectedCities", []);
+                    }
+                  }}
                   defaultValue={field.value}
                   className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="all" id="city-all" />
-                    <Label htmlFor="city-all">همه شهرها</Label>
+                    <Label htmlFor="city-all" className="cursor-pointer">همه شهرها</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="one" id="city-one" />
-                    <Label htmlFor="city-one">یک شهر</Label>
+                    <Label htmlFor="city-one" className="cursor-pointer">یک شهر</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="multiple" id="city-multiple" />
-                    <Label htmlFor="city-multiple">چند شهر</Label>
+                    <Label htmlFor="city-multiple" className="cursor-pointer">چند شهر (حداکثر {MAX_CITIES})</Label>
                   </div>
                 </RadioGroup>
               </FormControl>
@@ -337,7 +421,7 @@ export function AdSubmissionForm() {
             name="selectedCities"
             render={({ field }) => (
               <FormItem>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-48 overflow-y-auto p-2 border rounded-lg">
                   {CITIES.map((city) => (
                     <label
                       key={city.value}
@@ -349,6 +433,14 @@ export function AdSubmissionForm() {
                           if (watchCityTarget === "one") {
                             field.onChange(checked ? [city.value] : []);
                           } else {
+                            if (checked && field.value.length >= MAX_CITIES) {
+                              toast({
+                                title: "محدودیت",
+                                description: `حداکثر ${MAX_CITIES} شهر می‌توانید انتخاب کنید`,
+                                variant: "destructive",
+                              });
+                              return;
+                            }
                             field.onChange(
                               checked
                                 ? [...field.value, city.value]
@@ -376,21 +468,28 @@ export function AdSubmissionForm() {
               <FormLabel>مخاطبان</FormLabel>
               <FormControl>
                 <RadioGroup
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    if (value === "all") {
+                      form.setValue("selectedAgeGroups", []);
+                      form.setValue("minAge", null);
+                      form.setValue("maxAge", null);
+                    }
+                  }}
                   defaultValue={field.value}
                   className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="all" id="age-all" />
-                    <Label htmlFor="age-all">همه سنین</Label>
+                    <Label htmlFor="age-all" className="cursor-pointer">همه سنین</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="list" id="age-list" />
-                    <Label htmlFor="age-list">انتخاب از لیست</Label>
+                    <Label htmlFor="age-list" className="cursor-pointer">انتخاب از لیست</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="custom" id="age-custom" />
-                    <Label htmlFor="age-custom">بازه سنی سفارشی</Label>
+                    <Label htmlFor="age-custom" className="cursor-pointer">بازه سنی سفارشی</Label>
                   </div>
                 </RadioGroup>
               </FormControl>
@@ -439,7 +538,14 @@ export function AdSubmissionForm() {
                 <FormItem className="flex-1">
                   <FormLabel>حداقل سن</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="۱۸" {...field} />
+                    <Input 
+                      type="number" 
+                      placeholder="۱۳" 
+                      min={13}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -452,7 +558,14 @@ export function AdSubmissionForm() {
                 <FormItem className="flex-1">
                   <FormLabel>حداکثر سن</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="۶۵" {...field} />
+                    <Input 
+                      type="number" 
+                      placeholder="۶۵" 
+                      max={120}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -461,9 +574,51 @@ export function AdSubmissionForm() {
           </div>
         )}
 
-        {/* Tags */}
+        {/* Predefined Tags (show for entertainment category) */}
+        {watchCategory === "entertainment" && (
+          <FormField
+            control={form.control}
+            name="tags"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>برچسب‌های پیشنهادی</FormLabel>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {TAGS.map((tag) => (
+                    <label
+                      key={tag.value}
+                      className="flex cursor-pointer items-center gap-2 rounded-md border p-2 transition-colors hover:bg-secondary"
+                    >
+                      <Checkbox
+                        checked={field.value.includes(tag.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked && field.value.length >= MAX_TAGS) {
+                            toast({
+                              title: "محدودیت",
+                              description: `حداکثر ${MAX_TAGS} برچسب می‌توانید انتخاب کنید`,
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          field.onChange(
+                            checked
+                              ? [...field.value, tag.value]
+                              : field.value.filter((v) => v !== tag.value)
+                          );
+                        }}
+                      />
+                      <span className="text-sm">{tag.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {/* Custom Tags */}
         <div className="space-y-3">
-          <Label>برچسب‌ها</Label>
+          <Label>برچسب‌های سفارشی (حداکثر {MAX_TAGS})</Label>
           <div className="flex gap-2">
             <Input
               value={customTag}
@@ -475,19 +630,26 @@ export function AdSubmissionForm() {
                   handleAddTag();
                 }
               }}
+              disabled={watchTags.length >= MAX_TAGS}
             />
-            <Button type="button" variant="secondary" onClick={handleAddTag}>
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={handleAddTag}
+              disabled={watchTags.length >= MAX_TAGS || !customTag.trim()}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
           {watchTags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {watchTags.map((tag) => (
-                <span
+                <Badge
                   key={tag}
-                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
+                  variant="secondary"
+                  className="flex items-center gap-1 px-3 py-1"
                 >
-                  {tag}
+                  {TAGS.find((t) => t.value === tag)?.label || tag}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag)}
@@ -495,16 +657,19 @@ export function AdSubmissionForm() {
                   >
                     <X className="h-3 w-3" />
                   </button>
-                </span>
+                </Badge>
               ))}
             </div>
           )}
+          <p className="text-xs text-muted-foreground">
+            {watchTags.length}/{MAX_TAGS} برچسب انتخاب شده
+          </p>
         </div>
 
         {/* Submit */}
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-          ثبت آگهی
+          {isSubmitting ? "در حال ثبت..." : "ثبت آگهی"}
         </Button>
       </form>
     </Form>
