@@ -27,6 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { CATEGORIES, CITIES, AGE_GROUPS, TAGS } from "@/lib/constants";
 import { addAd } from "@/lib/ads";
 
@@ -91,6 +92,7 @@ type FormData = z.infer<typeof formSchema>;
 export function AdSubmissionForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTag, setCustomTag] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string>("");
@@ -169,6 +171,16 @@ export function AdSubmissionForm() {
   };
 
   const onSubmit = async (data: FormData) => {
+    if (!user) {
+      toast({
+        title: "خطا",
+        description: "برای ثبت آگهی باید وارد شوید",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const cities =
@@ -181,29 +193,29 @@ export function AdSubmissionForm() {
           ? ["all"]
           : data.selectedAgeGroups;
 
-      const finalImageUrl = data.imageUrl || 
-        `https://picsum.photos/seed/${Date.now()}/400/300`;
-
-      await addAd({
+      const result = await addAd({
         category: data.category,
         name: data.name,
         text: data.text,
         telegramLink: data.telegramLink,
         members: data.members,
-        imageUrl: finalImageUrl,
+        imageUrl: data.imageUrl || undefined,
         cities,
         ageGroups,
         minAge: data.ageTarget === "custom" ? data.minAge ?? undefined : undefined,
         maxAge: data.ageTarget === "custom" ? data.maxAge ?? undefined : undefined,
         tags: data.tags,
-      });
+      }, user.id);
 
-      toast({
-        title: "آگهی ثبت شد!",
-        description: "آگهی شما با موفقیت ثبت شد.",
-      });
-
-      navigate("/");
+      if (result) {
+        toast({
+          title: "آگهی ثبت شد!",
+          description: "آگهی شما با موفقیت ثبت شد.",
+        });
+        navigate("/");
+      } else {
+        throw new Error("Failed to add ad");
+      }
     } catch {
       toast({
         title: "خطا",
@@ -489,7 +501,7 @@ export function AdSubmissionForm() {
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="custom" id="age-custom" />
-                    <Label htmlFor="age-custom" className="cursor-pointer">بازه سنی سفارشی</Label>
+                    <Label htmlFor="age-custom" className="cursor-pointer">محدوده سنی</Label>
                   </div>
                 </RadioGroup>
               </FormControl>
@@ -503,8 +515,8 @@ export function AdSubmissionForm() {
             name="selectedAgeGroups"
             render={({ field }) => (
               <FormItem>
-                <div className="grid grid-cols-2 gap-2">
-                  {AGE_GROUPS.filter((a) => a.value !== "all").map((age) => (
+                <div className="flex flex-wrap gap-2">
+                  {AGE_GROUPS.map((age) => (
                     <label
                       key={age.value}
                       className="flex cursor-pointer items-center gap-2 rounded-md border p-2 transition-colors hover:bg-secondary"
@@ -538,13 +550,12 @@ export function AdSubmissionForm() {
                 <FormItem className="flex-1">
                   <FormLabel>حداقل سن</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="۱۳" 
-                      min={13}
+                    <Input
+                      type="number"
+                      placeholder="۱۳"
+                      dir="ltr"
                       {...field}
                       value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -558,13 +569,12 @@ export function AdSubmissionForm() {
                 <FormItem className="flex-1">
                   <FormLabel>حداکثر سن</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="۶۵" 
-                      max={120}
+                    <Input
+                      type="number"
+                      placeholder="۶۵"
+                      dir="ltr"
                       {...field}
                       value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -574,86 +584,58 @@ export function AdSubmissionForm() {
           </div>
         )}
 
-        {/* Predefined Tags (show for entertainment category) */}
-        {watchCategory === "entertainment" && (
-          <FormField
-            control={form.control}
-            name="tags"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>برچسب‌های پیشنهادی</FormLabel>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {TAGS.map((tag) => (
-                    <label
-                      key={tag.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border p-2 transition-colors hover:bg-secondary"
-                    >
-                      <Checkbox
-                        checked={field.value.includes(tag.value)}
-                        onCheckedChange={(checked) => {
-                          if (checked && field.value.length >= MAX_TAGS) {
-                            toast({
-                              title: "محدودیت",
-                              description: `حداکثر ${MAX_TAGS} برچسب می‌توانید انتخاب کنید`,
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          field.onChange(
-                            checked
-                              ? [...field.value, tag.value]
-                              : field.value.filter((v) => v !== tag.value)
-                          );
-                        }}
-                      />
-                      <span className="text-sm">{tag.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        {/* Custom Tags */}
+        {/* Tags */}
         <div className="space-y-3">
-          <Label>برچسب‌های سفارشی (حداکثر {MAX_TAGS})</Label>
+          <Label>برچسب‌ها (حداکثر {MAX_TAGS})</Label>
+
+          {watchCategory === "entertainment" && (
+            <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-secondary/30">
+              <span className="text-sm text-muted-foreground w-full mb-2">برچسب‌های پیشنهادی:</span>
+              {TAGS.map((tag) => (
+                <Badge
+                  key={tag.value}
+                  variant={watchTags.includes(tag.value) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    if (watchTags.includes(tag.value)) {
+                      handleRemoveTag(tag.value);
+                    } else if (watchTags.length < MAX_TAGS) {
+                      form.setValue("tags", [...watchTags, tag.value]);
+                    }
+                  }}
+                >
+                  {tag.label}
+                </Badge>
+              ))}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Input
+              placeholder="برچسب جدید..."
               value={customTag}
               onChange={(e) => setCustomTag(e.target.value)}
-              placeholder="برچسب جدید..."
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   handleAddTag();
                 }
               }}
-              disabled={watchTags.length >= MAX_TAGS}
             />
-            <Button 
-              type="button" 
-              variant="secondary" 
-              onClick={handleAddTag}
-              disabled={watchTags.length >= MAX_TAGS || !customTag.trim()}
-            >
+            <Button type="button" variant="outline" onClick={handleAddTag}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+
           {watchTags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {watchTags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="flex items-center gap-1 px-3 py-1"
-                >
+                <Badge key={tag} variant="secondary" className="gap-1 pl-1">
                   {TAGS.find((t) => t.value === tag)?.label || tag}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag)}
-                    className="rounded-full p-0.5 hover:bg-primary/20"
+                    className="rounded-full p-0.5 hover:bg-foreground/10"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -661,15 +643,18 @@ export function AdSubmissionForm() {
               ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            {watchTags.length}/{MAX_TAGS} برچسب انتخاب شده
-          </p>
         </div>
 
         {/* Submit */}
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? "در حال ثبت..." : "ثبت آگهی"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              در حال ثبت...
+            </>
+          ) : (
+            "ثبت آگهی"
+          )}
         </Button>
       </form>
     </Form>
