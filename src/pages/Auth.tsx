@@ -1,41 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Loader2, Mail, Lock, User, MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-
-const loginSchema = z.object({
-  email: z.string().email("ایمیل معتبر وارد کنید"),
-  password: z.string().min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد"),
-});
-
-const signupSchema = z.object({
-  displayName: z.string().min(2, "نام باید حداقل ۲ کاراکتر باشد").max(50, "نام نباید بیش از ۵۰ کاراکتر باشد"),
-  email: z.string().email("ایمیل معتبر وارد کنید"),
-  password: z.string().min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "رمز عبور و تکرار آن باید یکسان باشند",
-  path: ["confirmPassword"],
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
-type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, signIn, signUp } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
 
   useEffect(() => {
     if (user) {
@@ -43,247 +18,75 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
-  const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const signupForm = useForm<SignupFormData>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: { displayName: "", email: "", password: "", confirmPassword: "" },
-  });
-
-  const handleLogin = async (data: LoginFormData) => {
+  const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    const { error } = await signIn(data.email, data.password);
-    setIsLoading(false);
-
+    const { error } = await signInWithGoogle();
+    
     if (error) {
+      setIsLoading(false);
       toast({
         title: "خطا در ورود",
-        description: error.message === "Invalid login credentials" 
-          ? "ایمیل یا رمز عبور اشتباه است" 
-          : error.message,
+        description: "مشکلی در ورود با گوگل رخ داد. لطفاً دوباره تلاش کنید.",
         variant: "destructive",
       });
-    } else {
-      toast({ title: "خوش آمدید!", description: "ورود موفقیت‌آمیز بود." });
-      navigate("/");
-    }
-  };
-
-  const handleSignup = async (data: SignupFormData) => {
-    setIsLoading(true);
-    const { error } = await signUp(data.email, data.password, data.displayName);
-    setIsLoading(false);
-
-    if (error) {
-      let message = error.message;
-      if (error.message.includes("already registered")) {
-        message = "این ایمیل قبلاً ثبت‌نام شده است";
-      }
-      toast({
-        title: "خطا در ثبت‌نام",
-        description: message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "ثبت‌نام موفق!",
-        description: "حساب شما ایجاد شد.",
-      });
-      navigate("/");
     }
   };
 
   return (
     <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-lg">
-            <MessageCircle className="h-8 w-8 text-primary-foreground" />
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg">
+            <MessageCircle className="h-9 w-9 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl">گپ‌گرام</CardTitle>
-          <CardDescription>
-            برای ثبت آگهی وارد شوید یا ثبت‌نام کنید
-          </CardDescription>
+          <div className="space-y-2">
+            <CardTitle className="text-2xl font-bold">ورود به گپ‌گرام</CardTitle>
+            <CardDescription className="text-base">
+              برای ثبت و مدیریت آگهی‌های خود وارد شوید
+            </CardDescription>
+          </div>
         </CardHeader>
 
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">ورود</TabsTrigger>
-              <TabsTrigger value="signup">ثبت‌نام</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="login" className="mt-4">
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-                  <FormField
-                    control={loginForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ایمیل</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              placeholder="example@email.com"
-                              dir="ltr"
-                              className="pr-10 text-left"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+        <CardContent className="space-y-4">
+          <Button 
+            onClick={handleGoogleSignIn} 
+            disabled={isLoading}
+            variant="outline"
+            className="w-full h-12 text-base font-medium gap-3 border-2 hover:bg-muted/50"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                در حال ورود...
+              </>
+            ) : (
+              <>
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   />
-
-                  <FormField
-                    control={loginForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>رمز عبور</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              type="password"
-                              placeholder="••••••"
-                              dir="ltr"
-                              className="pr-10 text-left"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
                   />
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                        در حال ورود...
-                      </>
-                    ) : (
-                      "ورود"
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-
-            <TabsContent value="signup" className="mt-4">
-              <Form {...signupForm}>
-                <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
-                  <FormField
-                    control={signupForm.control}
-                    name="displayName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>نام</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <User className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input placeholder="نام شما" className="pr-10" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
                   />
-
-                  <FormField
-                    control={signupForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ایمیل</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              placeholder="example@email.com"
-                              dir="ltr"
-                              className="pr-10 text-left"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
-
-                  <FormField
-                    control={signupForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>رمز عبور</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              type="password"
-                              placeholder="••••••"
-                              dir="ltr"
-                              className="pr-10 text-left"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={signupForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>تکرار رمز عبور</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              type="password"
-                              placeholder="••••••"
-                              dir="ltr"
-                              className="pr-10 text-left"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                        در حال ثبت‌نام...
-                      </>
-                    ) : (
-                      "ثبت‌نام"
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-          </Tabs>
+                </svg>
+                ورود با حساب گوگل
+              </>
+            )}
+          </Button>
         </CardContent>
 
-        <CardFooter className="text-center text-sm text-muted-foreground">
-          با ورود یا ثبت‌نام، شرایط استفاده را می‌پذیرید.
+        <CardFooter className="flex flex-col gap-2 text-center text-sm text-muted-foreground">
+          <p>با ورود، شرایط استفاده از گپ‌گرام را می‌پذیرید.</p>
         </CardFooter>
       </Card>
     </div>
