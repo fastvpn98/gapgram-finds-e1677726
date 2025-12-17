@@ -281,3 +281,48 @@ export async function deleteAd(adId: string): Promise<boolean> {
   
   return true;
 }
+
+export async function getAdById(adId: string): Promise<RankedAd | null> {
+  const { data, error } = await supabase
+    .from("ads")
+    .select("*")
+    .eq("id", adId)
+    .single();
+
+  if (error || !data) {
+    console.error("Error fetching ad:", error);
+    return null;
+  }
+
+  return mapDbAdToRankedAd(data);
+}
+
+export async function updateAd(adId: string, data: Partial<AdFormData>): Promise<RankedAd | null> {
+  const updateData: Record<string, unknown> = {};
+  
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.text !== undefined) updateData.text = data.text;
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.telegramLink !== undefined) updateData.telegram_link = data.telegramLink;
+  if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
+  if (data.members !== undefined) updateData.members = data.members;
+  if (data.tags !== undefined) updateData.tags = data.tags;
+  if (data.cities !== undefined) updateData.cities = data.cities;
+  if (data.ageGroups !== undefined) updateData.age_groups = data.ageGroups;
+  if (data.minAge !== undefined) updateData.min_age = data.minAge;
+  if (data.maxAge !== undefined) updateData.max_age = data.maxAge;
+
+  const { data: updatedAd, error } = await supabase
+    .from("ads")
+    .update(updateData)
+    .eq("id", adId)
+    .select()
+    .single();
+
+  if (error || !updatedAd) {
+    console.error("Error updating ad:", error);
+    return null;
+  }
+
+  return mapDbAdToRankedAd(updatedAd);
+}
