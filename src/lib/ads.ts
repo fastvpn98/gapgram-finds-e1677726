@@ -1,6 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 import { RankedAd, AdFormData } from "./types";
 
+// Safe error logging utility - only logs details in development
+function logSafeError(context: string, error: unknown) {
+  if (import.meta.env.DEV) {
+    console.error(`[${context}]`, error);
+  } else {
+    console.error(`[${context}] Operation failed`);
+  }
+}
+
 // Seed data for initial database population
 const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
   {
@@ -190,7 +199,7 @@ export async function getAds(): Promise<RankedAd[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching ads:", error);
+    logSafeError("getAds", error);
     return [];
   }
 
@@ -223,7 +232,7 @@ async function seedDatabase() {
 
   const { error } = await supabase.from("ads").insert(adsToInsert);
   if (error) {
-    console.error("Error seeding database:", error);
+    logSafeError("seedDatabase", error);
   }
 }
 
@@ -249,7 +258,7 @@ export async function addAd(data: AdFormData, userId: string): Promise<RankedAd 
     .single();
 
   if (error) {
-    console.error("Error adding ad:", error);
+    logSafeError("addAd", error);
     return null;
   }
 
@@ -264,7 +273,7 @@ export async function getUserAds(userId: string): Promise<RankedAd[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching user ads:", error);
+    logSafeError("getUserAds", error);
     return [];
   }
 
@@ -275,7 +284,7 @@ export async function deleteAd(adId: string): Promise<boolean> {
   const { error } = await supabase.from("ads").delete().eq("id", adId);
   
   if (error) {
-    console.error("Error deleting ad:", error);
+    logSafeError("deleteAd", error);
     return false;
   }
   
@@ -290,7 +299,7 @@ export async function getAdById(adId: string): Promise<RankedAd | null> {
     .single();
 
   if (error || !data) {
-    console.error("Error fetching ad:", error);
+    logSafeError("getAdById", error);
     return null;
   }
 
@@ -320,7 +329,7 @@ export async function updateAd(adId: string, data: Partial<AdFormData>): Promise
     .single();
 
   if (error || !updatedAd) {
-    console.error("Error updating ad:", error);
+    logSafeError("updateAd", error);
     return null;
   }
 
