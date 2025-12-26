@@ -14,6 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_clicks: {
+        Row: {
+          ad_id: string
+          clicked_at: string
+          id: string
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ad_id: string
+          clicked_at?: string
+          id?: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ad_id?: string
+          clicked_at?: string
+          id?: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_clicks_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_likes: {
+        Row: {
+          ad_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          ad_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          ad_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_likes_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_views: {
+        Row: {
+          ad_id: string
+          id: string
+          session_id: string | null
+          user_id: string | null
+          viewed_at: string
+        }
+        Insert: {
+          ad_id: string
+          id?: string
+          session_id?: string | null
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Update: {
+          ad_id?: string
+          id?: string
+          session_id?: string | null
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_views_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ads: {
         Row: {
           age_groups: string[] | null
@@ -22,11 +115,13 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          is_approved: boolean
           max_age: number | null
           members: number | null
           min_age: number | null
           name: string
           relevance_score: number | null
+          status: string
           tags: string[] | null
           telegram_link: string
           text: string
@@ -40,11 +135,13 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_approved?: boolean
           max_age?: number | null
           members?: number | null
           min_age?: number | null
           name: string
           relevance_score?: number | null
+          status?: string
           tags?: string[] | null
           telegram_link: string
           text: string
@@ -58,11 +155,13 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_approved?: boolean
           max_age?: number | null
           members?: number | null
           min_age?: number | null
           name?: string
           relevance_score?: number | null
+          status?: string
           tags?: string[] | null
           telegram_link?: string
           text?: string
@@ -95,15 +194,66 @@ export type Database = {
         }
         Relationships: []
       }
+      site_visits: {
+        Row: {
+          id: string
+          page_path: string | null
+          session_id: string | null
+          user_id: string | null
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+          visited_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -230,6 +380,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

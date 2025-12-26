@@ -10,6 +10,8 @@ import SubmitAd from "./pages/SubmitAd";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import EditAd from "./pages/EditAd";
+import AdminPanel from "./pages/AdminPanel";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +31,8 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/edit-ad/:id" element={<EditAd />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
