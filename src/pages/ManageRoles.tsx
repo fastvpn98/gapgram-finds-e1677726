@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -219,14 +218,11 @@ export default function ManageRoles() {
 
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </main>
-      </div>
+      <main className="flex-1 container py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </main>
     );
   }
 
@@ -235,18 +231,16 @@ export default function ManageRoles() {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <Header />
-      <main className="container py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
-            مدیریت نقش‌ها
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            اضافه کردن و مدیریت مدیران و ناظران سایت
-          </p>
-        </div>
+    <main className="flex-1 container py-8" dir="rtl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+          <Shield className="h-8 w-8 text-primary" />
+          مدیریت نقش‌ها
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          اضافه کردن و مدیریت مدیران و ناظران سایت
+        </p>
+      </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           {/* Add New Role */}
@@ -348,7 +342,6 @@ export default function ManageRoles() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+    </main>
   );
 }
