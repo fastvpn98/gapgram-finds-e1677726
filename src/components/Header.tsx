@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { OnlineCounter } from "@/components/OnlineCounter";
 
 export function Header() {
   const { user, signOut, loading } = useAuth();
@@ -23,12 +24,15 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md">
-            <MessageCircle className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">گپ‌گرام</span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md">
+              <MessageCircle className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold text-foreground">گپ‌گرام</span>
+          </Link>
+          <OnlineCounter />
+        </div>
 
         <div className="flex items-center gap-3">
           {!loading && (
