@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Plus, X, ImageIcon, Users } from "lucide-react";
+import { Loader2, Plus, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,12 +28,11 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { CATEGORIES, CITIES, AGE_GROUPS, TAGS } from "@/lib/constants";
+import { CATEGORIES, CITIES, AGE_GROUPS } from "@/lib/constants";
 import { addAd } from "@/lib/ads";
 
 const MAX_DESCRIPTION_LENGTH = 300;
 const MAX_TAGS = 5;
-const MAX_CITIES = 5;
 
 const formSchema = z.object({
   category: z.string().min(1, "دسته‌بندی را انتخاب کنید"),
@@ -55,18 +54,8 @@ const formSchema = z.object({
   members: z.coerce
     .number({ invalid_type_error: "عدد معتبر وارد کنید" })
     .positive("تعداد اعضا باید مثبت باشد"),
-  imageUrl: z
-    .string()
-    .refine(
-      (val) => val === "" || val.startsWith("data:image/") || val.startsWith("https://"),
-      "فرمت تصویر معتبر نیست"
-    )
-    .optional()
-    .or(z.literal("")),
-  cityTarget: z.enum(["all", "one", "multiple"]),
-  selectedCities: z
-    .array(z.string())
-    .max(MAX_CITIES, `حداکثر ${MAX_CITIES} شهر می‌توانید انتخاب کنید`),
+  cityTarget: z.enum(["all", "multiple"]),
+  selectedCities: z.array(z.string()),
   ageTarget: z.enum(["all", "list", "custom"]),
   selectedAgeGroups: z.array(z.string()),
   minAge: z.coerce.number().min(13, "حداقل سن ۱۳ سال است").optional().nullable(),
@@ -95,7 +84,6 @@ export function AdSubmissionForm() {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTag, setCustomTag] = useState("");
-  const [imageDataUrl, setImageDataUrl] = useState<string>("");
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -105,7 +93,6 @@ export function AdSubmissionForm() {
       text: "",
       telegramLink: "",
       members: 0,
-      imageUrl: "",
       cityTarget: "all",
       selectedCities: [],
       ageTarget: "all",
@@ -143,33 +130,6 @@ export function AdSubmissionForm() {
     );
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "خطا",
-          description: "حجم فایل نباید بیشتر از ۵ مگابایت باشد",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setImageDataUrl(result);
-        form.setValue("imageUrl", result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setImageDataUrl("");
-    form.setValue("imageUrl", "");
-  };
-
   const onSubmit = async (data: FormData) => {
     if (!user) {
       toast({
@@ -199,7 +159,6 @@ export function AdSubmissionForm() {
         text: data.text,
         telegramLink: data.telegramLink,
         members: data.members,
-        imageUrl: data.imageUrl || undefined,
         cities,
         ageGroups,
         minAge: data.ageTarget === "custom" ? data.minAge ?? undefined : undefined,
@@ -210,9 +169,9 @@ export function AdSubmissionForm() {
       if (result) {
         toast({
           title: "آگهی ثبت شد!",
-          description: "آگهی شما با موفقیت ثبت شد.",
+          description: "آگهی شما پس از تأیید مدیر نمایش داده خواهد شد.",
         });
-        navigate("/");
+        navigate("/dashboard");
       } else {
         throw new Error("Failed to add ad");
       }
@@ -352,45 +311,6 @@ export function AdSubmissionForm() {
           )}
         />
 
-        {/* Image Upload */}
-        <div className="space-y-3">
-          <Label>تصویر (اختیاری)</Label>
-          <div className="flex flex-col gap-3">
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="cursor-pointer"
-            />
-            <input type="hidden" {...form.register("imageUrl")} value={imageDataUrl} />
-            
-            {imageDataUrl ? (
-              <div className="relative inline-block">
-                <img
-                  src={imageDataUrl}
-                  alt="پیش‌نمایش"
-                  className="h-32 w-48 object-cover rounded-lg border"
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -top-2 -left-2 h-6 w-6"
-                  onClick={handleRemoveImage}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                <span className="block text-sm text-muted-foreground mt-1">پیش‌نمایش تصویر</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 border rounded-lg border-dashed">
-                <ImageIcon className="h-5 w-5" />
-                <span>تصویر پیش‌فرض استفاده خواهد شد (حداکثر ۵ مگابایت)</span>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* City Targeting */}
         <FormField
           control={form.control}
@@ -414,12 +334,8 @@ export function AdSubmissionForm() {
                     <Label htmlFor="city-all" className="cursor-pointer">همه شهرها</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem value="one" id="city-one" />
-                    <Label htmlFor="city-one" className="cursor-pointer">یک شهر</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <RadioGroupItem value="multiple" id="city-multiple" />
-                    <Label htmlFor="city-multiple" className="cursor-pointer">چند شهر (حداکثر {MAX_CITIES})</Label>
+                    <Label htmlFor="city-multiple" className="cursor-pointer">انتخاب شهر</Label>
                   </div>
                 </RadioGroup>
               </FormControl>
@@ -427,13 +343,13 @@ export function AdSubmissionForm() {
           )}
         />
 
-        {watchCityTarget !== "all" && (
+        {watchCityTarget === "multiple" && (
           <FormField
             control={form.control}
             name="selectedCities"
             render={({ field }) => (
               <FormItem>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-48 overflow-y-auto p-2 border rounded-lg">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-64 overflow-y-auto p-2 border rounded-lg">
                   {CITIES.map((city) => (
                     <label
                       key={city.value}
@@ -442,23 +358,11 @@ export function AdSubmissionForm() {
                       <Checkbox
                         checked={field.value.includes(city.value)}
                         onCheckedChange={(checked) => {
-                          if (watchCityTarget === "one") {
-                            field.onChange(checked ? [city.value] : []);
-                          } else {
-                            if (checked && field.value.length >= MAX_CITIES) {
-                              toast({
-                                title: "محدودیت",
-                                description: `حداکثر ${MAX_CITIES} شهر می‌توانید انتخاب کنید`,
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            field.onChange(
-                              checked
-                                ? [...field.value, city.value]
-                                : field.value.filter((v) => v !== city.value)
-                            );
-                          }
+                          field.onChange(
+                            checked
+                              ? [...field.value, city.value]
+                              : field.value.filter((v) => v !== city.value)
+                          );
                         }}
                       />
                       <span className="text-sm">{city.label}</span>
@@ -588,28 +492,6 @@ export function AdSubmissionForm() {
         <div className="space-y-3">
           <Label>برچسب‌ها (حداکثر {MAX_TAGS})</Label>
 
-          {watchCategory === "entertainment" && (
-            <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-secondary/30">
-              <span className="text-sm text-muted-foreground w-full mb-2">برچسب‌های پیشنهادی:</span>
-              {TAGS.map((tag) => (
-                <Badge
-                  key={tag.value}
-                  variant={watchTags.includes(tag.value) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    if (watchTags.includes(tag.value)) {
-                      handleRemoveTag(tag.value);
-                    } else if (watchTags.length < MAX_TAGS) {
-                      form.setValue("tags", [...watchTags, tag.value]);
-                    }
-                  }}
-                >
-                  {tag.label}
-                </Badge>
-              ))}
-            </div>
-          )}
-
           <div className="flex gap-2">
             <Input
               placeholder="برچسب جدید..."
@@ -631,7 +513,7 @@ export function AdSubmissionForm() {
             <div className="flex flex-wrap gap-2">
               {watchTags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="gap-1 pl-1">
-                  {TAGS.find((t) => t.value === tag)?.label || tag}
+                  {tag}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag)}
