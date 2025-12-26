@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import EditAd from "./pages/EditAd";
 import AdminPanel from "./pages/AdminPanel";
 import Analytics from "./pages/Analytics";
+import ManageRoles from "./pages/ManageRoles";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/edit-ad/:id" element={<EditAd />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/manage-roles" element={<ManageRoles />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

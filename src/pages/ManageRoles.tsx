@@ -119,14 +119,11 @@ export default function ManageRoles() {
 
     setAdding(true);
     try {
-      // First, find the user by email using a database function or edge function
-      // Since we can't query auth.users directly, we need to find through profiles or other means
-      const { data: authData, error: authError } = await supabase.rpc('get_user_id_by_email', {
-        email_input: newEmail.trim()
-      });
+      // Use the database function to get user id by email
+      const { data: userId, error: userError } = await supabase
+        .rpc('get_user_id_by_email', { email_input: newEmail.trim() } as any);
 
-      if (authError || !authData) {
-        // Try alternative: search in profiles (if email is stored there) or show error
+      if (userError || !userId) {
         toast({
           title: "خطا",
           description: "کاربر با این ایمیل یافت نشد. کاربر باید ابتدا وارد سایت شود.",
@@ -137,10 +134,10 @@ export default function ManageRoles() {
 
       const { error } = await supabase
         .from("user_roles")
-        .insert({
-          user_id: authData,
+        .insert([{
+          user_id: userId as string,
           role: newRole,
-        });
+        }]);
 
       if (error) {
         if (error.code === '23505') {
