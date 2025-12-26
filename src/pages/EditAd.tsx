@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Upload, X, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getAdById, updateAd } from "@/lib/ads";
 import { CATEGORIES, CITIES, TAGS, AGE_GROUPS } from "@/lib/constants";
 import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
 
 const editAdSchema = z.object({
   name: z.string().min(3, "نام باید حداقل ۳ کاراکتر باشد").max(100, "نام نباید بیش از ۱۰۰ کاراکتر باشد"),
@@ -37,11 +38,13 @@ const editAdSchema = z.object({
     (val) => val.includes("t.me") || val.includes("telegram"),
     "لینک باید از تلگرام باشد"
   ),
-  imageUrl: z.string().url("آدرس تصویر معتبر نیست").optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
   members: z.coerce.number().min(0, "تعداد اعضا نمی‌تواند منفی باشد").optional(),
   cities: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   ageGroups: z.array(z.string()).optional(),
+  minAge: z.coerce.number().min(13).optional().nullable(),
+  maxAge: z.coerce.number().max(120).optional().nullable(),
 });
 
 type EditAdFormData = z.infer<typeof editAdSchema>;
@@ -53,6 +56,8 @@ export default function EditAd() {
   const { user, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const form = useForm<EditAdFormData>({
     resolver: zodResolver(editAdSchema),
@@ -66,8 +71,55 @@ export default function EditAd() {
       cities: [],
       tags: [],
       ageGroups: [],
+      minAge: null,
+      maxAge: null,
     },
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "خطا", description: "فقط فایل تصویر مجاز است", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "خطا", description: "حجم تصویر نباید بیش از ۲ مگابایت باشد", variant: "destructive" });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('ad-images')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('ad-images')
+        .getPublicUrl(fileName);
+
+      form.setValue('imageUrl', urlData.publicUrl);
+      setImagePreview(urlData.publicUrl);
+      toast({ title: "تصویر آپلود شد" });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({ title: "خطا", description: "آپلود تصویر با مشکل مواجه شد", variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    form.setValue('imageUrl', '');
+    setImagePreview(null);
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -102,7 +154,13 @@ export default function EditAd() {
       cities: ad.cities || [],
       tags: ad.tags || [],
       ageGroups: ad.ageGroups || [],
+      minAge: ad.minAge || null,
+      maxAge: ad.maxAge || null,
     });
+    
+    if (ad.imageUrl) {
+      setImagePreview(ad.imageUrl);
+    }
     
     setIsLoading(false);
   };
@@ -256,24 +314,39 @@ export default function EditAd() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="imageUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>آدرس تصویر (اختیاری)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          dir="ltr"
-                          placeholder="https://example.com/image.jpg"
-                          className="text-left"
-                          {...field} 
+                {/* Image Upload */}
+                <FormItem>
+                  <FormLabel>تصویر (اختیاری)</FormLabel>
+                  <div className="space-y-3">
+                    {imagePreview ? (
+                      <div className="relative w-32 h-32">
+                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={removeImage}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground mt-1">آپلود تصویر</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      </label>
+                    )}
+                    {uploadingImage && <p className="text-xs text-muted-foreground">در حال آپلود...</p>}
+                  </div>
+                </FormItem>
 
                 {/* Cities */}
                 <FormField

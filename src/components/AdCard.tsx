@@ -143,24 +143,6 @@ export function AdCard({ ad }: AdCardProps) {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent sm:bg-gradient-to-l" />
-          
-          {/* Like button overlay */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLike}
-            disabled={likeLoading}
-            className={cn(
-              "absolute top-2 right-2 h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm",
-              liked && "text-red-500"
-            )}
-          >
-            <Heart className={cn("h-5 w-5", liked && "fill-current")} />
-          </Button>
-          <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm rounded-full px-2 py-1 text-xs flex items-center gap-1">
-            <Heart className="h-3 w-3" />
-            {likesCount.toLocaleString("fa-IR")}
-          </div>
         </div>
 
         <div className="flex flex-1 flex-col">
@@ -172,29 +154,33 @@ export function AdCard({ ad }: AdCardProps) {
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">{timeAgo}</p>
               </div>
-              {category && (
-                <Badge variant="secondary" className="gap-1 flex-shrink-0">
-                  {CategoryIcon && <CategoryIcon className="h-3 w-3" />}
-                  {category.label}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {category && (
+                  <Badge variant="secondary" className="gap-1">
+                    {CategoryIcon && <CategoryIcon className="h-3 w-3" />}
+                    {category.label}
+                  </Badge>
+                )}
+                {/* Like button next to category */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLike}
+                  disabled={likeLoading}
+                  className={cn(
+                    "h-8 px-2 gap-1 text-muted-foreground hover:text-foreground",
+                    liked && "text-red-500 hover:text-red-600"
+                  )}
+                >
+                  <Heart className={cn("h-4 w-4", liked && "fill-current")} />
+                  <span className="text-xs">{likesCount > 0 ? likesCount.toLocaleString("fa-IR") : ""}</span>
+                </Button>
+              </div>
             </div>
           </CardHeader>
 
           <CardContent className="flex-1 pb-2">
             <p className="text-sm text-muted-foreground line-clamp-2">{ad.text}</p>
-            
-            {/* Tags display */}
-            {tagLabels.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {tagLabels.map((tag, index) => (
-                  <Badge key={index} variant="outline" className="text-xs gap-1">
-                    <Tag className="h-3 w-3" />
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
           </CardContent>
 
           <CardFooter className="flex flex-wrap items-center gap-2 pt-2">
@@ -202,6 +188,8 @@ export function AdCard({ ad }: AdCardProps) {
               <Users className="h-3 w-3" />
               {formatMembers(ad.members)} عضو
             </Badge>
+            
+            {/* Cities */}
             {cityLabels.length > 0 && (
               <Badge variant="outline" className="gap-1 text-xs">
                 <MapPin className="h-3 w-3" />
@@ -209,12 +197,27 @@ export function AdCard({ ad }: AdCardProps) {
                 {remainingCitiesCount > 0 && ` +${remainingCitiesCount}`}
               </Badge>
             )}
-            {ageLabel && (
+            
+            {/* Age range display */}
+            {(ad.minAge || ad.maxAge) && (
               <Badge variant="outline" className="gap-1 text-xs">
                 <UserCircle className="h-3 w-3" />
-                {ageLabel}
+                {ad.minAge && ad.maxAge 
+                  ? `${ad.minAge}-${ad.maxAge} سال`
+                  : ad.minAge 
+                    ? `${ad.minAge}+ سال`
+                    : `تا ${ad.maxAge} سال`
+                }
               </Badge>
             )}
+            
+            {/* Tags (max 5) in same row */}
+            {tagLabels.slice(0, 5).map((tag, index) => (
+              <Badge key={index} variant="outline" className="text-xs gap-1">
+                <Tag className="h-3 w-3" />
+                {tag}
+              </Badge>
+            ))}
 
             <div className="mr-auto flex gap-2">
               <Button
