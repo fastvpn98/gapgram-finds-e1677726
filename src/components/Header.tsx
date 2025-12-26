@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { PlusCircle, MessageCircle, LogOut, LayoutDashboard, User } from "lucide-react";
+import { PlusCircle, MessageCircle, LogOut, LayoutDashboard, User, Shield, BarChart3, CheckCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,9 +10,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export function Header() {
   const { user, signOut, loading } = useAuth();
+  const { isAdmin, isModerator, canApproveAds } = useUserRole();
 
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "کاربر";
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
@@ -73,6 +75,37 @@ export function Header() {
                           پنل کاربری
                         </Link>
                       </DropdownMenuItem>
+                      
+                      {/* Admin/Moderator Options */}
+                      {canApproveAds && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link to="/admin">
+                              <CheckCircle className="ml-2 h-4 w-4" />
+                              تأیید آگهی‌ها
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      
+                      {isAdmin && (
+                        <>
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link to="/analytics">
+                              <BarChart3 className="ml-2 h-4 w-4" />
+                              آمار و تحلیل
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link to="/manage-roles">
+                              <Users className="ml-2 h-4 w-4" />
+                              مدیریت نقش‌ها
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
                         <LogOut className="ml-2 h-4 w-4" />
