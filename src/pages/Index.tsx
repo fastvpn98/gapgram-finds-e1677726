@@ -16,10 +16,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { AdCard } from "@/components/AdCard";
 import { AdListSkeleton } from "@/components/AdCardSkeleton";
 import { FilterSidebar } from "@/components/FilterSidebar";
+import { WelcomeModal } from "@/components/WelcomeModal";
 import { getAds } from "@/lib/ads";
 import { RankedAd } from "@/lib/types";
 import { CATEGORIES, CITIES, AGE_GROUPS, TAGS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { trackSiteVisit } from "@/lib/analytics";
 
 type SortOption = "relevance" | "most-members" | "least-members" | "newest" | "oldest";
 
@@ -27,6 +29,14 @@ export default function Index() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [ads, setAds] = useState<RankedAd[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasEntered, setHasEntered] = useState(() => {
+    return sessionStorage.getItem("hasSeenWelcome") === "true";
+  });
+
+  const handleEnter = () => {
+    setHasEntered(true);
+    trackSiteVisit("/");
+  };
 
   const category = searchParams.get("category") || "";
   const query = searchParams.get("q") || "";
@@ -169,6 +179,9 @@ export default function Index() {
 
   return (
     <div className="min-h-screen gradient-hero">
+      {/* Welcome Modal */}
+      <WelcomeModal onEnter={handleEnter} />
+      
       {/* Hero Section */}
       <section className="border-b bg-card/50 py-8 sm:py-12">
         <div className="container text-center">
