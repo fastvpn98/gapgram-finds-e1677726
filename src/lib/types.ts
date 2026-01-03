@@ -8,7 +8,7 @@ export interface RankedAd {
   imageUrl: string;
   members: number;
   tags: string[];
-  cities: string[];
+  provinces: string[];  // renamed from cities
   ageGroups: string[];
   minAge?: number;
   maxAge?: number;
@@ -17,16 +17,18 @@ export interface RankedAd {
   isApproved?: boolean;
   likesCount?: number;
   isLiked?: boolean;
+  adType: 'group' | 'channel';  // new field
 }
 
 export interface AdFormData {
+  adType: 'group' | 'channel';  // new field - first question
   category: string;
   name: string;
   text: string;
   telegramLink: string;
   members: number;
   imageUrl?: string;
-  cities: string[];
+  provinces: string[];  // renamed from cities
   ageGroups: string[];
   minAge?: number;
   maxAge?: number;

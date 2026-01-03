@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Plus, X, Users } from "lucide-react";
+import { Loader2, Plus, X, Users, MessageCircle, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,13 +28,16 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { CATEGORIES, CITIES, AGE_GROUPS } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AGE_GROUPS } from "@/lib/constants";
 import { addAd } from "@/lib/ads";
 
 const MAX_DESCRIPTION_LENGTH = 300;
 const MAX_TAGS = 5;
 
 const formSchema = z.object({
+  adType: z.enum(["group", "channel"], {
+    required_error: "نوع آگهی را انتخاب کنید",
+  }),
   category: z.string().min(1, "دسته‌بندی را انتخاب کنید"),
   name: z
     .string()
@@ -54,8 +57,8 @@ const formSchema = z.object({
   members: z.coerce
     .number({ invalid_type_error: "عدد معتبر وارد کنید" })
     .positive("تعداد اعضا باید مثبت باشد"),
-  cityTarget: z.enum(["all", "multiple"]),
-  selectedCities: z.array(z.string()),
+  provinceTarget: z.enum(["all", "multiple"]),
+  selectedProvinces: z.array(z.string()),
   ageTarget: z.enum(["all", "list", "custom"]),
   selectedAgeGroups: z.array(z.string()),
   minAge: z.coerce.number().min(13, "حداقل سن ۱۳ سال است").optional().nullable(),
@@ -88,13 +91,14 @@ export function AdSubmissionForm() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      adType: undefined,
       category: "",
       name: "",
       text: "",
       telegramLink: "",
       members: 0,
-      cityTarget: "all",
-      selectedCities: [],
+      provinceTarget: "all",
+      selectedProvinces: [],
       ageTarget: "all",
       selectedAgeGroups: [],
       minAge: null,
@@ -104,10 +108,11 @@ export function AdSubmissionForm() {
   });
 
   const watchText = form.watch("text");
-  const watchCityTarget = form.watch("cityTarget");
+  const watchProvinceTarget = form.watch("provinceTarget");
   const watchAgeTarget = form.watch("ageTarget");
   const watchTags = form.watch("tags");
   const watchCategory = form.watch("category");
+  const watchAdType = form.watch("adType");
 
   const handleAddTag = () => {
     const trimmedTag = customTag.trim();
@@ -143,10 +148,10 @@ export function AdSubmissionForm() {
 
     setIsSubmitting(true);
     try {
-      const cities =
-        data.cityTarget === "all"
+      const provinces =
+        data.provinceTarget === "all"
           ? []
-          : data.selectedCities;
+          : data.selectedProvinces;
 
       const ageGroups =
         data.ageTarget === "all"
@@ -154,12 +159,13 @@ export function AdSubmissionForm() {
           : data.selectedAgeGroups;
 
       const result = await addAd({
+        adType: data.adType,
         category: data.category,
         name: data.name,
         text: data.text,
         telegramLink: data.telegramLink,
         members: data.members,
-        cities,
+        provinces,
         ageGroups,
         minAge: data.ageTarget === "custom" ? data.minAge ?? undefined : undefined,
         maxAge: data.ageTarget === "custom" ? data.maxAge ?? undefined : undefined,
@@ -191,6 +197,56 @@ export function AdSubmissionForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Ad Type - FIRST QUESTION */}
+        <FormField
+          control={form.control}
+          name="adType"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel className="text-lg font-semibold">نوع آگهی *</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="flex gap-4"
+                >
+                  <div className="flex-1">
+                    <RadioGroupItem 
+                      value="group" 
+                      id="type-group" 
+                      className="peer sr-only" 
+                    />
+                    <Label 
+                      htmlFor="type-group" 
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                      <MessageCircle className="h-8 w-8 mb-2" />
+                      <span className="font-medium">گروه</span>
+                      <span className="text-xs text-muted-foreground mt-1">Group</span>
+                    </Label>
+                  </div>
+                  <div className="flex-1">
+                    <RadioGroupItem 
+                      value="channel" 
+                      id="type-channel" 
+                      className="peer sr-only" 
+                    />
+                    <Label 
+                      htmlFor="type-channel" 
+                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                      <Radio className="h-8 w-8 mb-2" />
+                      <span className="font-medium">کانال</span>
+                      <span className="text-xs text-muted-foreground mt-1">Channel</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Category */}
         <FormField
           control={form.control}
@@ -231,7 +287,9 @@ export function AdSubmissionForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>نام گروه یا کانال *</FormLabel>
+              <FormLabel>
+                نام {watchAdType === "channel" ? "کانال" : watchAdType === "group" ? "گروه" : "گروه یا کانال"} *
+              </FormLabel>
               <FormControl>
                 <Input placeholder="مثال: فروشگاه آنلاین دیجی‌کالا" {...field} />
               </FormControl>
@@ -311,31 +369,31 @@ export function AdSubmissionForm() {
           )}
         />
 
-        {/* City Targeting */}
+        {/* Province Targeting */}
         <FormField
           control={form.control}
-          name="cityTarget"
+          name="provinceTarget"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>هدف‌گذاری شهر</FormLabel>
+              <FormLabel>هدف‌گذاری استان</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={(value) => {
                     field.onChange(value);
                     if (value === "all") {
-                      form.setValue("selectedCities", []);
+                      form.setValue("selectedProvinces", []);
                     }
                   }}
                   defaultValue={field.value}
                   className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem value="all" id="city-all" />
-                    <Label htmlFor="city-all" className="cursor-pointer">همه شهرها</Label>
+                    <RadioGroupItem value="all" id="province-all" />
+                    <Label htmlFor="province-all" className="cursor-pointer">همه استان‌ها</Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem value="multiple" id="city-multiple" />
-                    <Label htmlFor="city-multiple" className="cursor-pointer">انتخاب شهر</Label>
+                    <RadioGroupItem value="multiple" id="province-multiple" />
+                    <Label htmlFor="province-multiple" className="cursor-pointer">انتخاب استان</Label>
                   </div>
                 </RadioGroup>
               </FormControl>
@@ -343,29 +401,29 @@ export function AdSubmissionForm() {
           )}
         />
 
-        {watchCityTarget === "multiple" && (
+        {watchProvinceTarget === "multiple" && (
           <FormField
             control={form.control}
-            name="selectedCities"
+            name="selectedProvinces"
             render={({ field }) => (
               <FormItem>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-64 overflow-y-auto p-2 border rounded-lg">
-                  {CITIES.map((city) => (
+                  {PROVINCES.map((province) => (
                     <label
-                      key={city.value}
+                      key={province.value}
                       className="flex cursor-pointer items-center gap-2 rounded-md border p-2 transition-colors hover:bg-secondary"
                     >
                       <Checkbox
-                        checked={field.value.includes(city.value)}
+                        checked={field.value.includes(province.value)}
                         onCheckedChange={(checked) => {
                           field.onChange(
                             checked
-                              ? [...field.value, city.value]
-                              : field.value.filter((v) => v !== city.value)
+                              ? [...field.value, province.value]
+                              : field.value.filter((v) => v !== province.value)
                           );
                         }}
                       />
-                      <span className="text-sm">{city.label}</span>
+                      <span className="text-sm">{province.label}</span>
                     </label>
                   ))}
                 </div>
@@ -527,11 +585,10 @@ export function AdSubmissionForm() {
           )}
         </div>
 
-        {/* Submit */}
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               در حال ثبت...
             </>
           ) : (

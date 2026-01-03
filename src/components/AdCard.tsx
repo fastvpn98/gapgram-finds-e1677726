@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { faIR } from "date-fns/locale";
-import { ExternalLink, Copy, Users, MapPin, UserCircle, Check, Heart, Tag } from "lucide-react";
+import { ExternalLink, Copy, Users, MapPin, UserCircle, Check, Heart, Tag, MessageCircle, Radio } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { RankedAd } from "@/lib/types";
-import { CATEGORIES, CITIES, AGE_GROUPS, TAGS } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AGE_GROUPS, TAGS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { trackAdClick, likeAd, unlikeAd, getAdLikesCount, isAdLikedByUser } from "@/lib/analytics";
 
@@ -16,9 +17,10 @@ interface AdCardProps {
   ad: RankedAd;
 }
 
-const MAX_CITIES_DISPLAY = 5;
+const MAX_PROVINCES_DISPLAY = 3;
 
 export function AdCard({ ad }: AdCardProps) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -29,11 +31,11 @@ export function AdCard({ ad }: AdCardProps) {
   const category = CATEGORIES.find((c) => c.value === ad.category);
   const CategoryIcon = category?.icon;
 
-  // Show max 5 cities
-  const displayCities = ad.cities.slice(0, MAX_CITIES_DISPLAY);
-  const remainingCitiesCount = ad.cities.length - MAX_CITIES_DISPLAY;
-  const cityLabels = displayCities
-    .map((c) => CITIES.find((city) => city.value === c)?.label)
+  // Show max provinces
+  const displayProvinces = ad.provinces.slice(0, MAX_PROVINCES_DISPLAY);
+  const remainingProvincesCount = ad.provinces.length - MAX_PROVINCES_DISPLAY;
+  const provinceLabels = displayProvinces
+    .map((p) => PROVINCES.find((prov) => prov.value === p)?.label)
     .filter(Boolean);
 
   const ageLabel = ad.ageGroups.includes("all")
@@ -52,7 +54,7 @@ export function AdCard({ ad }: AdCardProps) {
   // Get tag labels (both predefined and custom)
   const tagLabels = ad.tags.map((tag) => {
     const predefinedTag = TAGS.find((t) => t.value === tag);
-    return predefinedTag ? predefinedTag.label : tag;
+    return { value: tag, label: predefinedTag ? predefinedTag.label : tag };
   });
 
   useEffect(() => {
@@ -133,6 +135,23 @@ export function AdCard({ ad }: AdCardProps) {
     return count.toString();
   };
 
+  // Navigate to filtered view when clicking on a badge
+  const handleTagClick = (tagValue: string) => {
+    navigate(`/?tags=${tagValue}`);
+  };
+
+  const handleProvinceClick = (provinceValue: string) => {
+    navigate(`/?provinces=${provinceValue}`);
+  };
+
+  const handleAgeClick = (ageValue: string) => {
+    navigate(`/?ageGroups=${ageValue}`);
+  };
+
+  const handleCategoryClick = () => {
+    navigate(`/?category=${ad.category}`);
+  };
+
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-card-hover animate-fade-in">
       <div className="flex flex-col sm:flex-row">
@@ -143,6 +162,25 @@ export function AdCard({ ad }: AdCardProps) {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent sm:bg-gradient-to-l" />
+          {/* Ad Type Badge */}
+          <Badge 
+            className={cn(
+              "absolute top-2 right-2 gap-1",
+              ad.adType === "channel" ? "bg-primary" : "bg-secondary text-secondary-foreground"
+            )}
+          >
+            {ad.adType === "channel" ? (
+              <>
+                <Radio className="h-3 w-3" />
+                کانال
+              </>
+            ) : (
+              <>
+                <MessageCircle className="h-3 w-3" />
+                گروه
+              </>
+            )}
+          </Badge>
         </div>
 
         <div className="flex flex-1 flex-col">
@@ -156,7 +194,11 @@ export function AdCard({ ad }: AdCardProps) {
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {category && (
-                  <Badge variant="secondary" className="gap-1">
+                  <Badge 
+                    variant="secondary" 
+                    className="gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+                    onClick={handleCategoryClick}
+                  >
                     {CategoryIcon && <CategoryIcon className="h-3 w-3" />}
                     {category.label}
                   </Badge>
@@ -189,33 +231,61 @@ export function AdCard({ ad }: AdCardProps) {
               {formatMembers(ad.members)} عضو
             </Badge>
             
-            {/* Cities */}
-            {cityLabels.length > 0 && (
-              <Badge variant="outline" className="gap-1 text-xs">
-                <MapPin className="h-3 w-3" />
-                {cityLabels.join("، ")}
-                {remainingCitiesCount > 0 && ` +${remainingCitiesCount}`}
-              </Badge>
+            {/* Provinces - Clickable */}
+            {provinceLabels.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {displayProvinces.map((prov) => {
+                  const provinceLabel = PROVINCES.find((p) => p.value === prov)?.label;
+                  return (
+                    <Badge 
+                      key={prov}
+                      variant="outline" 
+                      className="gap-1 text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => handleProvinceClick(prov)}
+                    >
+                      <MapPin className="h-3 w-3" />
+                      {provinceLabel}
+                    </Badge>
+                  );
+                })}
+                {remainingProvincesCount > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{remainingProvincesCount}
+                  </Badge>
+                )}
+              </div>
             )}
             
-            {/* Age range display */}
-            {(ad.minAge || ad.maxAge) && (
-              <Badge variant="outline" className="gap-1 text-xs">
-                <UserCircle className="h-3 w-3" />
-                {ad.minAge && ad.maxAge 
-                  ? `${ad.minAge}-${ad.maxAge} سال`
-                  : ad.minAge 
-                    ? `${ad.minAge}+ سال`
-                    : `تا ${ad.maxAge} سال`
-                }
-              </Badge>
+            {/* Age groups - Clickable */}
+            {ad.ageGroups.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {ad.ageGroups.slice(0, 2).map((age) => {
+                  const ageLabel = AGE_GROUPS.find((a) => a.value === age)?.label;
+                  return (
+                    <Badge 
+                      key={age}
+                      variant="outline" 
+                      className="gap-1 text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => handleAgeClick(age)}
+                    >
+                      <UserCircle className="h-3 w-3" />
+                      {ageLabel}
+                    </Badge>
+                  );
+                })}
+              </div>
             )}
             
-            {/* Tags (max 5) in same row */}
-            {tagLabels.slice(0, 5).map((tag, index) => (
-              <Badge key={index} variant="outline" className="text-xs gap-1">
+            {/* Tags - Clickable (max 3) */}
+            {tagLabels.slice(0, 3).map((tag) => (
+              <Badge 
+                key={tag.value} 
+                variant="outline" 
+                className="text-xs gap-1 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                onClick={() => handleTagClick(tag.value)}
+              >
                 <Tag className="h-3 w-3" />
-                {tag}
+                {tag.label}
               </Badge>
             ))}
 

@@ -3,10 +3,11 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowRight, Upload, X, Image } from "lucide-react";
+import { Loader2, ArrowRight, Upload, X, MessageCircle, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
@@ -23,14 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { getAdById, updateAd } from "@/lib/ads";
-import { CATEGORIES, CITIES, TAGS, AGE_GROUPS } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, TAGS, AGE_GROUPS } from "@/lib/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 
 const editAdSchema = z.object({
+  adType: z.enum(["group", "channel"]),
   name: z.string().min(3, "نام باید حداقل ۳ کاراکتر باشد").max(100, "نام نباید بیش از ۱۰۰ کاراکتر باشد"),
   text: z.string().min(10, "توضیحات باید حداقل ۱۰ کاراکتر باشد").max(500, "توضیحات نباید بیش از ۵۰۰ کاراکتر باشد"),
   category: z.string().min(1, "دسته‌بندی را انتخاب کنید"),
@@ -40,7 +43,7 @@ const editAdSchema = z.object({
   ),
   imageUrl: z.string().optional().or(z.literal("")),
   members: z.coerce.number().min(0, "تعداد اعضا نمی‌تواند منفی باشد").optional(),
-  cities: z.array(z.string()).optional(),
+  provinces: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   ageGroups: z.array(z.string()).optional(),
   minAge: z.coerce.number().min(13).optional().nullable(),
@@ -62,13 +65,14 @@ export default function EditAd() {
   const form = useForm<EditAdFormData>({
     resolver: zodResolver(editAdSchema),
     defaultValues: {
+      adType: "group",
       name: "",
       text: "",
       category: "",
       telegramLink: "",
       imageUrl: "",
       members: 0,
-      cities: [],
+      provinces: [],
       tags: [],
       ageGroups: [],
       minAge: null,
@@ -145,13 +149,14 @@ export default function EditAd() {
     }
 
     form.reset({
+      adType: ad.adType || "group",
       name: ad.name,
       text: ad.text,
       category: ad.category,
       telegramLink: ad.telegramLink,
       imageUrl: ad.imageUrl || "",
       members: ad.members || 0,
-      cities: ad.cities || [],
+      provinces: ad.provinces || [],
       tags: ad.tags || [],
       ageGroups: ad.ageGroups || [],
       minAge: ad.minAge || null,
@@ -170,13 +175,14 @@ export default function EditAd() {
     
     setIsSubmitting(true);
     const result = await updateAd(id, {
+      adType: data.adType,
       name: data.name,
       text: data.text,
       category: data.category,
       telegramLink: data.telegramLink,
       imageUrl: data.imageUrl || undefined,
       members: data.members,
-      cities: data.cities,
+      provinces: data.provinces,
       tags: data.tags,
       ageGroups: data.ageGroups,
     });
@@ -218,6 +224,54 @@ export default function EditAd() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Ad Type */}
+                <FormField
+                  control={form.control}
+                  name="adType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-lg font-semibold">نوع آگهی</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="flex gap-4"
+                        >
+                          <div className="flex-1">
+                            <RadioGroupItem 
+                              value="group" 
+                              id="edit-type-group" 
+                              className="peer sr-only" 
+                            />
+                            <Label 
+                              htmlFor="edit-type-group" 
+                              className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                            >
+                              <MessageCircle className="h-8 w-8 mb-2" />
+                              <span className="font-medium">گروه</span>
+                            </Label>
+                          </div>
+                          <div className="flex-1">
+                            <RadioGroupItem 
+                              value="channel" 
+                              id="edit-type-channel" 
+                              className="peer sr-only" 
+                            />
+                            <Label 
+                              htmlFor="edit-type-channel" 
+                              className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                            >
+                              <Radio className="h-8 w-8 mb-2" />
+                              <span className="font-medium">کانال</span>
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="name"
@@ -348,35 +402,35 @@ export default function EditAd() {
                   </div>
                 </FormItem>
 
-                {/* Cities */}
+                {/* Provinces */}
                 <FormField
                   control={form.control}
-                  name="cities"
+                  name="provinces"
                   render={() => (
                     <FormItem>
-                      <FormLabel>شهرها</FormLabel>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {CITIES.filter(c => c.value !== "all").map((city) => (
+                      <FormLabel>استان‌ها</FormLabel>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 border rounded-lg">
+                        {PROVINCES.map((province) => (
                           <FormField
-                            key={city.value}
+                            key={province.value}
                             control={form.control}
-                            name="cities"
+                            name="provinces"
                             render={({ field }) => (
                               <FormItem className="flex items-center gap-2 space-y-0">
                                 <FormControl>
                                   <Checkbox
-                                    checked={field.value?.includes(city.value)}
+                                    checked={field.value?.includes(province.value)}
                                     onCheckedChange={(checked) => {
                                       const current = field.value || [];
                                       field.onChange(
                                         checked
-                                          ? [...current, city.value]
-                                          : current.filter((v) => v !== city.value)
+                                          ? [...current, province.value]
+                                          : current.filter((v) => v !== province.value)
                                       );
                                     }}
                                   />
                                 </FormControl>
-                                <span className="text-sm">{city.label}</span>
+                                <span className="text-sm">{province.label}</span>
                               </FormItem>
                             )}
                           />
@@ -462,8 +516,8 @@ export default function EditAd() {
                   )}
                 />
 
-                <div className="flex gap-4">
-                  <Button type="submit" disabled={isSubmitting} className="flex-1">
+                <div className="flex gap-4 pt-4">
+                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <>
                         <Loader2 className="ml-2 h-4 w-4 animate-spin" />
