@@ -20,9 +20,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400&h=300&fit=crop",
     members: 250000,
     tags: ["popular", "verified", "discount"],
-    cities: ["tehran", "mashhad", "isfahan"],
+    provinces: ["tehran", "khorasan-e-razavi", "isfahan"],
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.95,
+    adType: "channel",
   },
   {
     name: "استخدام برنامه‌نویس",
@@ -32,9 +33,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop",
     members: 85000,
     tags: ["new", "active", "trusted"],
-    cities: ["tehran", "karaj"],
+    provinces: ["tehran", "alborz"],
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.88,
+    adType: "group",
   },
   {
     name: "آموزش زبان انگلیسی",
@@ -44,9 +46,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&h=300&fit=crop",
     members: 120000,
     tags: ["verified", "popular", "premium"],
-    cities: ["tehran", "mashhad", "shiraz"],
+    provinces: ["tehran", "khorasan-e-razavi", "fars"],
     ageGroups: ["youth", "adults", "middle"],
     relevanceScore: 0.92,
+    adType: "channel",
   },
   {
     name: "گیمرهای ایران",
@@ -56,9 +59,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=300&fit=crop",
     members: 180000,
     tags: ["popular", "active", "free"],
-    cities: ["tehran", "isfahan", "tabriz"],
+    provinces: ["tehran", "isfahan", "azarbayjan-e-sharghi"],
     ageGroups: ["youth"],
     relevanceScore: 0.85,
+    adType: "group",
   },
   {
     name: "سلامت و تندرستی",
@@ -68,9 +72,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=400&h=300&fit=crop",
     members: 95000,
     tags: ["verified", "trusted", "premium"],
-    cities: ["tehran", "mashhad", "qom"],
+    provinces: ["tehran", "khorasan-e-razavi", "qom"],
     ageGroups: ["adults", "middle", "senior"],
     relevanceScore: 0.82,
+    adType: "channel",
   },
   {
     name: "اخبار روز ایران",
@@ -80,9 +85,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=300&fit=crop",
     members: 320000,
     tags: ["popular", "active", "verified"],
-    cities: ["tehran"],
+    provinces: ["tehran"],
     ageGroups: ["all"],
     relevanceScore: 0.98,
+    adType: "channel",
   },
   {
     name: "موسیقی پاپ ایران",
@@ -92,9 +98,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop",
     members: 210000,
     tags: ["popular", "free", "active"],
-    cities: ["tehran", "shiraz", "isfahan"],
+    provinces: ["tehran", "fars", "isfahan"],
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.89,
+    adType: "channel",
   },
   {
     name: "رستوران‌های تهران",
@@ -104,9 +111,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop",
     members: 75000,
     tags: ["discount", "new", "trusted"],
-    cities: ["tehran"],
+    provinces: ["tehran"],
     ageGroups: ["youth", "adults", "middle"],
     relevanceScore: 0.78,
+    adType: "group",
   },
   {
     name: "خرید و فروش خودرو",
@@ -116,9 +124,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=300&fit=crop",
     members: 145000,
     tags: ["popular", "verified", "active"],
-    cities: ["tehran", "karaj", "tabriz", "mashhad"],
+    provinces: ["tehran", "alborz", "azarbayjan-e-sharghi", "khorasan-e-razavi"],
     ageGroups: ["adults", "middle"],
     relevanceScore: 0.86,
+    adType: "group",
   },
   {
     name: "املاک و مستغلات",
@@ -128,9 +137,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop",
     members: 190000,
     tags: ["verified", "trusted", "premium"],
-    cities: ["tehran", "karaj", "isfahan", "shiraz"],
+    provinces: ["tehran", "alborz", "isfahan", "fars"],
     ageGroups: ["adults", "middle", "senior"],
     relevanceScore: 0.91,
+    adType: "channel",
   },
   {
     name: "تکنولوژی و گجت",
@@ -140,9 +150,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=400&h=300&fit=crop",
     members: 165000,
     tags: ["new", "popular", "verified"],
-    cities: ["tehran", "mashhad"],
+    provinces: ["tehran", "khorasan-e-razavi"],
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.93,
+    adType: "channel",
   },
   {
     name: "همشهری تهران",
@@ -152,9 +163,10 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     imageUrl: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop",
     members: 55000,
     tags: ["active", "free", "trusted"],
-    cities: ["tehran"],
+    provinces: ["tehran"],
     ageGroups: ["all"],
     relevanceScore: 0.75,
+    adType: "group",
   },
 ];
 
@@ -173,6 +185,7 @@ function mapDbAdToRankedAd(dbAd: {
   max_age: number | null;
   relevance_score: number | null;
   created_at: string;
+  ad_type?: string;
 }): RankedAd {
   return {
     id: dbAd.id,
@@ -183,12 +196,13 @@ function mapDbAdToRankedAd(dbAd: {
     imageUrl: dbAd.image_url || "https://picsum.photos/400/300",
     members: dbAd.members || 0,
     tags: dbAd.tags || [],
-    cities: dbAd.cities || [],
+    provinces: dbAd.cities || [],  // DB column is still 'cities' but we use it as provinces
     ageGroups: dbAd.age_groups || [],
     minAge: dbAd.min_age ?? undefined,
     maxAge: dbAd.max_age ?? undefined,
     relevanceScore: dbAd.relevance_score || 0.5,
     createdAt: dbAd.created_at,
+    adType: (dbAd.ad_type as 'group' | 'channel') || 'group',
   };
 }
 
@@ -225,9 +239,10 @@ async function seedDatabase() {
     image_url: ad.imageUrl,
     members: ad.members,
     tags: ad.tags,
-    cities: ad.cities,
+    cities: ad.provinces,  // DB column is still 'cities'
     age_groups: ad.ageGroups,
     relevance_score: ad.relevanceScore,
+    ad_type: ad.adType,
   }));
 
   const { error } = await supabase.from("ads").insert(adsToInsert);
@@ -248,11 +263,12 @@ export async function addAd(data: AdFormData, userId: string): Promise<RankedAd 
       image_url: data.imageUrl || `https://picsum.photos/seed/${Date.now()}/400/300`,
       members: data.members,
       tags: data.tags || [],
-      cities: data.cities || [],
+      cities: data.provinces || [],  // DB column is still 'cities'
       age_groups: data.ageGroups || [],
       min_age: data.minAge,
       max_age: data.maxAge,
       relevance_score: Math.random() * 0.3 + 0.7,
+      ad_type: data.adType,
     })
     .select()
     .single();
@@ -296,7 +312,7 @@ export async function getAdById(adId: string): Promise<RankedAd | null> {
     .from("ads")
     .select("*")
     .eq("id", adId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     logSafeError("getAdById", error);
@@ -316,10 +332,11 @@ export async function updateAd(adId: string, data: Partial<AdFormData>): Promise
   if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
   if (data.members !== undefined) updateData.members = data.members;
   if (data.tags !== undefined) updateData.tags = data.tags;
-  if (data.cities !== undefined) updateData.cities = data.cities;
+  if (data.provinces !== undefined) updateData.cities = data.provinces;  // DB column is still 'cities'
   if (data.ageGroups !== undefined) updateData.age_groups = data.ageGroups;
   if (data.minAge !== undefined) updateData.min_age = data.minAge;
   if (data.maxAge !== undefined) updateData.max_age = data.maxAge;
+  if (data.adType !== undefined) updateData.ad_type = data.adType;
 
   const { data: updatedAd, error } = await supabase
     .from("ads")

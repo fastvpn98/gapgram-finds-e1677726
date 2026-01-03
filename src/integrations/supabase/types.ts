@@ -109,6 +109,7 @@ export type Database = {
       }
       ads: {
         Row: {
+          ad_type: string
           age_groups: string[] | null
           category: string
           cities: string[] | null
@@ -129,6 +130,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          ad_type?: string
           age_groups?: string[] | null
           category: string
           cities?: string[] | null
@@ -149,6 +151,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          ad_type?: string
           age_groups?: string[] | null
           category?: string
           cities?: string[] | null

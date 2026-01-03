@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, X, SlidersHorizontal, LayoutGrid } from "lucide-react";
+import { Search, LayoutGrid } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -12,15 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AdCard } from "@/components/AdCard";
 import { AdListSkeleton } from "@/components/AdCardSkeleton";
-import { FilterSidebar } from "@/components/FilterSidebar";
+import { TypeToggle } from "@/components/TypeToggle";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { getAds } from "@/lib/ads";
 import { RankedAd } from "@/lib/types";
-import { CATEGORIES, CITIES, AGE_GROUPS, TAGS } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { CATEGORIES } from "@/lib/constants";
 import { trackSiteVisit } from "@/lib/analytics";
 
 type SortOption = "relevance" | "most-members" | "least-members" | "newest" | "oldest";
@@ -41,9 +38,12 @@ export default function Index() {
   const category = searchParams.get("category") || "";
   const query = searchParams.get("q") || "";
   const sort = (searchParams.get("sort") as SortOption) || "relevance";
-  const selectedCities = searchParams.get("cities")?.split(",").filter(Boolean) || [];
-  const selectedAgeGroups = searchParams.get("ageGroups")?.split(",").filter(Boolean) || [];
+  const adType = (searchParams.get("type") as "group" | "channel" | "all") || "all";
+  
+  // Filter params from clickable badges
   const selectedTags = searchParams.get("tags")?.split(",").filter(Boolean) || [];
+  const selectedProvinces = searchParams.get("provinces")?.split(",").filter(Boolean) || [];
+  const selectedAgeGroups = searchParams.get("ageGroups")?.split(",").filter(Boolean) || [];
 
   useEffect(() => {
     const fetchAds = async () => {
@@ -71,24 +71,23 @@ export default function Index() {
     setSearchParams(newParams);
   };
 
-  const clearFilter = (key: string, value?: string) => {
+  const clearFilter = (key: string) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      const current = newParams.get(key)?.split(",").filter(Boolean) || [];
-      const updated = current.filter((v) => v !== value);
-      if (updated.length > 0) {
-        newParams.set(key, updated.join(","));
-      } else {
-        newParams.delete(key);
-      }
-    } else {
-      newParams.delete(key);
-    }
+    newParams.delete(key);
     setSearchParams(newParams);
+  };
+
+  const clearAllFilters = () => {
+    setSearchParams(new URLSearchParams());
   };
 
   const filteredAndSortedAds = useMemo(() => {
     let result = [...ads];
+
+    // Filter by ad type
+    if (adType !== "all") {
+      result = result.filter((ad) => ad.adType === adType);
+    }
 
     // Filter by category
     if (category) {
@@ -105,26 +104,26 @@ export default function Index() {
       );
     }
 
-    // Filter by cities
-    if (selectedCities.length > 0) {
+    // Filter by tags (from badge click)
+    if (selectedTags.length > 0) {
       result = result.filter((ad) =>
-        ad.cities.some((c) => selectedCities.includes(c))
+        ad.tags.some((t) => selectedTags.includes(t))
       );
     }
 
-    // Filter by age groups
+    // Filter by provinces (from badge click)
+    if (selectedProvinces.length > 0) {
+      result = result.filter((ad) =>
+        ad.provinces.some((p) => selectedProvinces.includes(p))
+      );
+    }
+
+    // Filter by age groups (from badge click)
     if (selectedAgeGroups.length > 0) {
       result = result.filter(
         (ad) =>
           ad.ageGroups.includes("all") ||
           ad.ageGroups.some((a) => selectedAgeGroups.includes(a))
-      );
-    }
-
-    // Filter by tags
-    if (selectedTags.length > 0) {
-      result = result.filter((ad) =>
-        ad.tags.some((t) => selectedTags.includes(t))
       );
     }
 
@@ -155,27 +154,9 @@ export default function Index() {
     }
 
     return result;
-  }, [ads, category, query, selectedCities, selectedAgeGroups, selectedTags, sort]);
+  }, [ads, category, query, selectedTags, selectedProvinces, selectedAgeGroups, sort, adType]);
 
-  const activeFilters = [
-    ...selectedCities.map((c) => ({
-      key: "cities",
-      value: c,
-      label: CITIES.find((city) => city.value === c)?.label || c,
-    })),
-    ...selectedAgeGroups.map((a) => ({
-      key: "ageGroups",
-      value: a,
-      label: AGE_GROUPS.find((age) => age.value === a)?.label || a,
-    })),
-    ...selectedTags.map((t) => ({
-      key: "tags",
-      value: t,
-      label: TAGS.find((tag) => tag.value === t)?.label || t,
-    })),
-  ];
-
-  const hasFilters = category || activeFilters.length > 0;
+  const hasActiveFilters = category || selectedTags.length > 0 || selectedProvinces.length > 0 || selectedAgeGroups.length > 0;
 
   return (
     <div className="min-h-screen gradient-hero">
@@ -189,7 +170,7 @@ export default function Index() {
             مرکز آگهی‌های تلگرام
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            بهترین گروه‌ها و کانال‌های تلگرام را کشف کنید. جستجو، فیلتر و عضویت آسان.
+            بهترین گروه‌ها و کانال‌های تلگرام را کشف کنید. جستجو و عضویت آسان.
           </p>
         </div>
       </section>
@@ -224,22 +205,16 @@ export default function Index() {
       {/* Main Content */}
       <main className="container py-6">
         <div className="flex flex-col gap-6 lg:flex-row">
-          {/* Sidebar - Desktop */}
-          {category && (
-            <aside className="hidden w-64 flex-shrink-0 lg:block">
-              <div className="sticky top-20 rounded-xl border bg-card p-4 shadow-card">
-                <h2 className="mb-4 font-bold text-foreground">فیلترها</h2>
-                <FilterSidebar
-                  selectedCities={selectedCities}
-                  selectedAgeGroups={selectedAgeGroups}
-                  selectedTags={selectedTags}
-                  onCitiesChange={(v) => updateFilter("cities", v)}
-                  onAgeGroupsChange={(v) => updateFilter("ageGroups", v)}
-                  onTagsChange={(v) => updateFilter("tags", v)}
-                />
-              </div>
-            </aside>
-          )}
+          {/* Sidebar - Type Toggle */}
+          <aside className="w-full lg:w-64 flex-shrink-0">
+            <div className="sticky top-20 rounded-xl border bg-card p-4 shadow-card">
+              <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
+              <TypeToggle
+                selectedType={adType}
+                onTypeChange={(type) => updateFilter("type", type === "all" ? "" : type)}
+              />
+            </div>
+          </aside>
 
           {/* Content */}
           <div className="flex-1 space-y-4">
@@ -270,60 +245,21 @@ export default function Index() {
                   <SelectItem value="oldest">قدیمی‌ترین</SelectItem>
                 </SelectContent>
               </Select>
-
-              {/* Mobile Filter Button */}
-              {category && (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" className="lg:hidden">
-                      <SlidersHorizontal className="h-4 w-4" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-80">
-                    <SheetHeader>
-                      <SheetTitle>فیلترها</SheetTitle>
-                    </SheetHeader>
-                    <div className="mt-4">
-                      <FilterSidebar
-                        selectedCities={selectedCities}
-                        selectedAgeGroups={selectedAgeGroups}
-                        selectedTags={selectedTags}
-                        onCitiesChange={(v) => updateFilter("cities", v)}
-                        onAgeGroupsChange={(v) => updateFilter("ageGroups", v)}
-                        onTagsChange={(v) => updateFilter("tags", v)}
-                      />
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              )}
             </div>
 
-            {/* Active Filters */}
-            {activeFilters.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-muted-foreground">فیلترها:</span>
-                {activeFilters.map((filter, i) => (
-                  <Badge
-                    key={`${filter.key}-${filter.value}-${i}`}
-                    variant="secondary"
-                    className="gap-1 pl-1"
-                  >
-                    {filter.label}
-                    <button
-                      onClick={() => clearFilter(filter.key, filter.value)}
-                      className="rounded-full p-0.5 hover:bg-foreground/10"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
+            {/* Active Filters Info */}
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  فیلتر فعال
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSearchParams(new URLSearchParams())}
-                  className="text-xs text-muted-foreground"
+                  onClick={clearAllFilters}
+                  className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  پاک کردن همه
+                  پاک کردن همه فیلترها
                 </Button>
               </div>
             )}
