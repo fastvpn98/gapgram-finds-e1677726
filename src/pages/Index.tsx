@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, LayoutGrid } from "lucide-react";
+import { Search, LayoutGrid, Grid3X3, MapPin, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,13 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AdCard } from "@/components/AdCard";
 import { AdListSkeleton } from "@/components/AdCardSkeleton";
 import { TypeToggle } from "@/components/TypeToggle";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { getAds } from "@/lib/ads";
 import { RankedAd } from "@/lib/types";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AGE_GROUPS } from "@/lib/constants";
 import { trackSiteVisit } from "@/lib/analytics";
 
 type SortOption = "relevance" | "most-members" | "least-members" | "newest" | "oldest";
@@ -204,96 +210,206 @@ export default function Index() {
 
       {/* Main Content */}
       <main className="container py-6">
-        <div className="flex flex-col gap-6 lg:flex-row">
-          {/* Sidebar - Type Toggle */}
-          <aside className="w-full lg:w-64 flex-shrink-0">
-            <div className="sticky top-20 space-y-4">
-              {/* Type Toggle - Above Search */}
-              <div className="rounded-xl border bg-card p-4 shadow-card">
-                <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
-                <TypeToggle
-                  selectedType={adType}
-                  onTypeChange={(type) => updateFilter("type", type === "all" ? "" : type)}
-                />
-              </div>
+        <div className="space-y-4">
+          {/* Type Toggle + Filter Buttons - Above Search */}
+          <div className="rounded-xl border bg-card p-4 shadow-card">
+            <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
+            <TypeToggle
+              selectedType={adType}
+              onTypeChange={(type) => updateFilter("type", type === "all" ? "" : type)}
+            />
+            
+            {/* Filter Buttons - Category, Provinces, Age */}
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              {/* Category Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Grid3X3 className="h-4 w-4" />
+                    دسته‌بندی
+                    {category && <span className="mr-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">۱</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-64 overflow-auto" align="start">
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm mb-2">انتخاب دسته‌بندی</p>
+                    <div 
+                      className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted ${!category ? "bg-muted" : ""}`}
+                      onClick={() => clearFilter("category")}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                      <span className="text-sm">همه</span>
+                    </div>
+                    {CATEGORIES.map((cat) => (
+                      <div
+                        key={cat.value}
+                        className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted ${category === cat.value ? "bg-muted" : ""}`}
+                        onClick={() => updateFilter("category", cat.value)}
+                      >
+                        <cat.icon className="h-4 w-4" />
+                        <span className="text-sm">{cat.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Province Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <MapPin className="h-4 w-4" />
+                    استان‌ها
+                    {selectedProvinces.length > 0 && (
+                      <span className="mr-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                        {selectedProvinces.length}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 max-h-64 overflow-auto" align="start">
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm mb-2">انتخاب استان</p>
+                    {PROVINCES.map((province) => (
+                      <div
+                        key={province.value}
+                        className="flex items-center gap-2 p-1"
+                      >
+                        <Checkbox
+                          id={`province-${province.value}`}
+                          checked={selectedProvinces.includes(province.value)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              updateFilter("provinces", [...selectedProvinces, province.value]);
+                            } else {
+                              updateFilter("provinces", selectedProvinces.filter(p => p !== province.value));
+                            }
+                          }}
+                        />
+                        <label htmlFor={`province-${province.value}`} className="text-sm cursor-pointer">
+                          {province.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Age Group Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    سن
+                    {selectedAgeGroups.length > 0 && (
+                      <span className="mr-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                        {selectedAgeGroups.length}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48" align="start">
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm mb-2">انتخاب گروه سنی</p>
+                    {AGE_GROUPS.map((age) => (
+                      <div
+                        key={age.value}
+                        className="flex items-center gap-2 p-1"
+                      >
+                        <Checkbox
+                          id={`age-${age.value}`}
+                          checked={selectedAgeGroups.includes(age.value)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              updateFilter("ageGroups", [...selectedAgeGroups, age.value]);
+                            } else {
+                              updateFilter("ageGroups", selectedAgeGroups.filter(a => a !== age.value));
+                            }
+                          }}
+                        />
+                        <label htmlFor={`age-${age.value}`} className="text-sm cursor-pointer">
+                          {age.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-          </aside>
-
-          {/* Content */}
-          <div className="flex-1 space-y-4">
-            {/* Search and Sort Bar */}
-            <div className="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-3 shadow-card backdrop-blur supports-[backdrop-filter]:bg-card/60">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="جستجو در آگهی‌ها..."
-                  value={query}
-                  onChange={(e) => updateFilter("q", e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-
-              <Select
-                value={sort}
-                onValueChange={(v) => updateFilter("sort", v)}
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="مرتب‌سازی" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="relevance">مرتبط‌ترین</SelectItem>
-                  <SelectItem value="most-members">بیشترین عضو</SelectItem>
-                  <SelectItem value="least-members">کمترین عضو</SelectItem>
-                  <SelectItem value="newest">جدیدترین</SelectItem>
-                  <SelectItem value="oldest">قدیمی‌ترین</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Active Filters Info */}
-            {hasActiveFilters && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  فیلتر فعال
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  پاک کردن همه فیلترها
-                </Button>
-              </div>
-            )}
-
-            {/* Results count */}
-            {!loading && (
-              <p className="text-sm text-muted-foreground">
-                {filteredAndSortedAds.length} آگهی یافت شد
-              </p>
-            )}
-
-            {/* Ad List */}
-            {loading ? (
-              <AdListSkeleton />
-            ) : filteredAndSortedAds.length > 0 ? (
-              <div className="space-y-4">
-                {filteredAndSortedAds.map((ad) => (
-                  <AdCard key={ad.id} ad={ad} />
-                ))}
-              </div>
-            ) : (
-              <Alert className="animate-fade-in">
-                <AlertDescription className="text-center py-8">
-                  <p className="text-lg font-medium">هیچ آگهی یافت نشد</p>
-                  <p className="mt-2 text-muted-foreground">
-                    فیلترهای خود را تغییر دهید یا دسته‌بندی دیگری را انتخاب کنید.
-                  </p>
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
+
+          {/* Search and Sort Bar */}
+          <div className="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-3 shadow-card backdrop-blur supports-[backdrop-filter]:bg-card/60">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="جستجو در آگهی‌ها..."
+                value={query}
+                onChange={(e) => updateFilter("q", e.target.value)}
+                className="pr-10"
+              />
+            </div>
+
+            <Select
+              value={sort}
+              onValueChange={(v) => updateFilter("sort", v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="مرتب‌سازی" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="relevance">مرتبط‌ترین</SelectItem>
+                <SelectItem value="most-members">بیشترین عضو</SelectItem>
+                <SelectItem value="least-members">کمترین عضو</SelectItem>
+                <SelectItem value="newest">جدیدترین</SelectItem>
+                <SelectItem value="oldest">قدیمی‌ترین</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Filters Info */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                فیلتر فعال
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                پاک کردن همه فیلترها
+              </Button>
+            </div>
+          )}
+
+          {/* Results count */}
+          {!loading && (
+            <p className="text-sm text-muted-foreground">
+              {filteredAndSortedAds.length} آگهی یافت شد
+            </p>
+          )}
+
+          {/* Ad List */}
+          {loading ? (
+            <AdListSkeleton />
+          ) : filteredAndSortedAds.length > 0 ? (
+            <div className="space-y-4">
+              {filteredAndSortedAds.map((ad) => (
+                <AdCard key={ad.id} ad={ad} />
+              ))}
+            </div>
+          ) : (
+            <Alert className="animate-fade-in">
+              <AlertDescription className="text-center py-8">
+                <p className="text-lg font-medium">هیچ آگهی یافت نشد</p>
+                <p className="mt-2 text-muted-foreground">
+                  فیلترهای خود را تغییر دهید یا دسته‌بندی دیگری را انتخاب کنید.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </main>
     </div>
