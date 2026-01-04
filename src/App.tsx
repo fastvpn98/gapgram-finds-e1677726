@@ -13,6 +13,9 @@ import EditAd from "./pages/EditAd";
 import AdminPanel from "./pages/AdminPanel";
 import Analytics from "./pages/Analytics";
 import ManageRoles from "./pages/ManageRoles";
+import ManageAds from "./pages/ManageAds";
+import ResetPassword from "./pages/ResetPassword";
+import ChangePassword from "./pages/ChangePassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +38,9 @@ const App = () => (
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/manage-roles" element={<ManageRoles />} />
+              <Route path="/manage-ads" element={<ManageAds />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/change-password" element={<ChangePassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

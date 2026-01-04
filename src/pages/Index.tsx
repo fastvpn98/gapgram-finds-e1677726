@@ -165,7 +165,7 @@ export default function Index() {
   const hasActiveFilters = category || selectedTags.length > 0 || selectedProvinces.length > 0 || selectedAgeGroups.length > 0;
 
   return (
-    <div className="min-h-screen gradient-hero">
+    <div className="min-h-screen gradient-hero flex flex-col">
       {/* Welcome Modal */}
       <WelcomeModal onEnter={handleEnter} />
       
@@ -181,37 +181,10 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Category Buttons */}
-      <section className="border-b bg-card/80 py-4">
-        <div className="container">
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button
-              variant={!category ? "default" : "outline"}
-              onClick={() => clearFilter("category")}
-              className="gap-2"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              همه
-            </Button>
-            {CATEGORIES.map((cat) => (
-              <Button
-                key={cat.value}
-                variant={category === cat.value ? "default" : "outline"}
-                onClick={() => updateFilter("category", cat.value)}
-                className="gap-2"
-              >
-                <cat.icon className="h-4 w-4" />
-                {cat.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Main Content */}
-      <main className="container py-6">
-        <div className="space-y-4">
-          {/* Type Toggle + Filter Buttons - Above Search */}
+      {/* Sticky Filter Section */}
+      <section className="sticky top-16 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container py-4 space-y-4">
+          {/* Type Toggle + Filter Buttons */}
           <div className="rounded-xl border bg-card p-4 shadow-card">
             <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
             <TypeToggle
@@ -339,7 +312,7 @@ export default function Index() {
           </div>
 
           {/* Search and Sort Bar */}
-          <div className="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-3 shadow-card backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3 shadow-card">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -366,7 +339,12 @@ export default function Index() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+      </section>
 
+      {/* Main Content - Scrollable */}
+      <main className="container py-6 flex-1">
+        <div className="space-y-4">
           {/* Active Filters Info */}
           {hasActiveFilters && (
             <div className="flex items-center gap-2">
