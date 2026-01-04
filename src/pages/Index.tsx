@@ -207,12 +207,15 @@ export default function Index() {
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Sidebar - Type Toggle */}
           <aside className="w-full lg:w-64 flex-shrink-0">
-            <div className="sticky top-20 rounded-xl border bg-card p-4 shadow-card">
-              <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
-              <TypeToggle
-                selectedType={adType}
-                onTypeChange={(type) => updateFilter("type", type === "all" ? "" : type)}
-              />
+            <div className="sticky top-20 space-y-4">
+              {/* Type Toggle - Above Search */}
+              <div className="rounded-xl border bg-card p-4 shadow-card">
+                <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
+                <TypeToggle
+                  selectedType={adType}
+                  onTypeChange={(type) => updateFilter("type", type === "all" ? "" : type)}
+                />
+              </div>
             </div>
           </aside>
 

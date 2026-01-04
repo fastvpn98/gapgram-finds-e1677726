@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, X, Clock, Eye, Loader2 } from "lucide-react";
+import { Check, X, Clock, Eye, Loader2, Trash2, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +103,37 @@ export default function AdminPanel() {
     }
   };
 
+  const deleteAd = async (adId: string) => {
+    if (!window.confirm("آیا از حذف این آگهی اطمینان دارید؟")) return;
+    
+    setProcessing(adId);
+    try {
+      const { error } = await supabase.from("ads").delete().eq("id", adId);
+
+      if (error) throw error;
+
+      toast({
+        title: "حذف شد",
+        description: "آگهی با موفقیت حذف شد",
+      });
+
+      fetchAds();
+    } catch (error) {
+      console.error("Error deleting ad:", error);
+      toast({
+        title: "خطا",
+        description: "خطا در حذف آگهی",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleEditAd = (adId: string) => {
+    navigate(`/edit-ad/${adId}`);
+  };
+
   if (authLoading || roleLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -153,6 +184,8 @@ export default function AdminPanel() {
                   ad={ad}
                   onApprove={() => updateAdStatus(ad.id, "approved")}
                   onReject={() => updateAdStatus(ad.id, "rejected")}
+                  onDelete={() => deleteAd(ad.id)}
+                  onEdit={() => handleEditAd(ad.id)}
                   processing={processing === ad.id}
                 />
               ))
@@ -173,6 +206,8 @@ export default function AdminPanel() {
                   ad={ad}
                   onApprove={() => updateAdStatus(ad.id, "approved")}
                   onReject={() => updateAdStatus(ad.id, "rejected")}
+                  onDelete={() => deleteAd(ad.id)}
+                  onEdit={() => handleEditAd(ad.id)}
                   processing={processing === ad.id}
                   showActions={false}
                 />
@@ -194,6 +229,8 @@ export default function AdminPanel() {
                   ad={ad}
                   onApprove={() => updateAdStatus(ad.id, "approved")}
                   onReject={() => updateAdStatus(ad.id, "rejected")}
+                  onDelete={() => deleteAd(ad.id)}
+                  onEdit={() => handleEditAd(ad.id)}
                   processing={processing === ad.id}
                   showActions
                 />
@@ -210,6 +247,8 @@ interface AdApprovalCardProps {
   ad: PendingAd;
   onApprove: () => void;
   onReject: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
   processing: boolean;
   showActions?: boolean;
 }
@@ -218,6 +257,8 @@ function AdApprovalCard({
   ad,
   onApprove,
   onReject,
+  onDelete,
+  onEdit,
   processing,
   showActions = true,
 }: AdApprovalCardProps) {
@@ -254,6 +295,28 @@ function AdApprovalCard({
                   : "در انتظار"}
               </Badge>
             </div>
+          </div>
+          {/* Admin Actions - Edit and Delete */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onEdit}
+              className="gap-1"
+            >
+              <Edit className="h-4 w-4" />
+              ویرایش
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onDelete}
+              disabled={processing}
+              className="gap-1"
+            >
+              <Trash2 className="h-4 w-4" />
+              حذف
+            </Button>
           </div>
         </div>
       </CardHeader>
