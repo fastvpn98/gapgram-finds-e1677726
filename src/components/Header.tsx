@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { PlusCircle, MessageCircle, LogOut, LayoutDashboard, User, Shield, BarChart3, CheckCircle, Users } from "lucide-react";
+import { PlusCircle, MessageCircle, LogOut, LayoutDashboard, User, Shield, BarChart3, CheckCircle, Users, FileEdit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -88,6 +88,12 @@ export function Header() {
                             <Link to="/admin">
                               <CheckCircle className="ml-2 h-4 w-4" />
                               تأیید آگهی‌ها
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link to="/manage-ads">
+                              <FileEdit className="ml-2 h-4 w-4" />
+                              مدیریت آگهی‌ها
                             </Link>
                           </DropdownMenuItem>
                         </>

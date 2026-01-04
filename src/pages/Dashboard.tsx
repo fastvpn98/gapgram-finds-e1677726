@@ -91,25 +91,30 @@ export default function Dashboard() {
         {/* Profile Section */}
         <Card className="shadow-card">
           <CardHeader>
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-2 border-primary/20">
-                {avatarUrl ? (
-                  <AvatarImage src={avatarUrl} alt={displayName} />
-                ) : null}
-                <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <CardTitle className="text-xl">{displayName}</CardTitle>
-                <CardDescription className="text-base">{user.email}</CardDescription>
-                {memberSince && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    عضویت از {memberSince}
-                  </p>
-                )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 border-2 border-primary/20">
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt={displayName} />
+                  ) : null}
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <CardTitle className="text-xl">{displayName}</CardTitle>
+                  <CardDescription className="text-base">{user.email}</CardDescription>
+                  {memberSince && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      عضویت از {memberSince}
+                    </p>
+                  )}
+                </div>
               </div>
+              <Button variant="outline" asChild>
+                <Link to="/change-password">تغییر رمز عبور</Link>
+              </Button>
             </div>
           </CardHeader>
         </Card>
