@@ -114,6 +114,7 @@ export type Database = {
           category: string
           cities: string[] | null
           created_at: string
+          deleted_at: string | null
           id: string
           image_url: string | null
           is_approved: boolean
@@ -135,6 +136,7 @@ export type Database = {
           category: string
           cities?: string[] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           image_url?: string | null
           is_approved?: boolean
@@ -156,6 +158,7 @@ export type Database = {
           category?: string
           cities?: string[] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           image_url?: string | null
           is_approved?: boolean
