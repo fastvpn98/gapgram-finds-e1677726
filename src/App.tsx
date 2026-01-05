@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
+import FilteredAds from "./pages/FilteredAds";
 import SubmitAd from "./pages/SubmitAd";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -31,6 +32,7 @@ const App = () => (
             <Header />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/filter" element={<FilteredAds />} />
               <Route path="/submit-ad" element={<SubmitAd />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />

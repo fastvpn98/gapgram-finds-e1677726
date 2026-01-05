@@ -136,20 +136,24 @@ export function AdCard({ ad }: AdCardProps) {
   };
 
   // Navigate to filtered view when clicking on a badge
-  const handleTagClick = (tagValue: string) => {
-    navigate(`/?tags=${tagValue}`);
+  const handleTagClick = (tagValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/filter?tag=${tagValue}`);
   };
 
-  const handleProvinceClick = (provinceValue: string) => {
-    navigate(`/?provinces=${provinceValue}`);
+  const handleProvinceClick = (provinceValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/filter?province=${provinceValue}`);
   };
 
-  const handleAgeClick = (ageValue: string) => {
-    navigate(`/?ageGroups=${ageValue}`);
+  const handleAgeClick = (ageValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/filter?age=${ageValue}`);
   };
 
-  const handleCategoryClick = () => {
-    navigate(`/?category=${ad.category}`);
+  const handleCategoryClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/filter?category=${ad.category}`);
   };
 
   return (
@@ -197,7 +201,7 @@ export function AdCard({ ad }: AdCardProps) {
                   <Badge 
                     variant="secondary" 
                     className="gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
-                    onClick={handleCategoryClick}
+                    onClick={(e) => handleCategoryClick(e)}
                   >
                     {CategoryIcon && <CategoryIcon className="h-3 w-3" />}
                     {category.label}
@@ -241,7 +245,7 @@ export function AdCard({ ad }: AdCardProps) {
                       key={prov}
                       variant="outline" 
                       className="gap-1 text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => handleProvinceClick(prov)}
+                      onClick={(e) => handleProvinceClick(prov, e)}
                     >
                       <MapPin className="h-3 w-3" />
                       {provinceLabel}
@@ -266,7 +270,7 @@ export function AdCard({ ad }: AdCardProps) {
                       key={age}
                       variant="outline" 
                       className="gap-1 text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => handleAgeClick(age)}
+                      onClick={(e) => handleAgeClick(age, e)}
                     >
                       <UserCircle className="h-3 w-3" />
                       {ageLabel}
@@ -282,7 +286,7 @@ export function AdCard({ ad }: AdCardProps) {
                 key={tag.value} 
                 variant="outline" 
                 className="text-xs gap-1 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                onClick={() => handleTagClick(tag.value)}
+                onClick={(e) => handleTagClick(tag.value, e)}
               >
                 <Tag className="h-3 w-3" />
                 {tag.label}

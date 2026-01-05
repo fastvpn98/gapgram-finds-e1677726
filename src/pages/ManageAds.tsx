@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Search, Trash2, Edit, Loader2, ExternalLink, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ interface Ad {
 export default function ManageAds() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
   const { canApproveAds, loading: roleLoading } = useUserRole();
   const [ads, setAds] = useState<Ad[]>([]);
@@ -108,6 +110,9 @@ export default function ManageAds() {
       });
 
       setAds(ads.filter(ad => ad.id !== adId));
+      
+      // Invalidate the ads query cache so the home page refreshes
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
     } catch (error) {
       console.error("Error deleting ad:", error);
       toast({

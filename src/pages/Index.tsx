@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Search, LayoutGrid, Grid3X3, MapPin, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,6 @@ import { AdListSkeleton } from "@/components/AdCardSkeleton";
 import { TypeToggle } from "@/components/TypeToggle";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { getAds } from "@/lib/ads";
-import { RankedAd } from "@/lib/types";
 import { CATEGORIES, PROVINCES, AGE_GROUPS } from "@/lib/constants";
 import { trackSiteVisit } from "@/lib/analytics";
 
@@ -30,10 +30,15 @@ type SortOption = "relevance" | "most-members" | "least-members" | "newest" | "o
 
 export default function Index() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [ads, setAds] = useState<RankedAd[]>([]);
-  const [loading, setLoading] = useState(true);
   const [hasEntered, setHasEntered] = useState(() => {
     return sessionStorage.getItem("hasSeenWelcome") === "true";
+  });
+
+  const { data: ads = [], isLoading: loading } = useQuery({
+    queryKey: ["ads"],
+    queryFn: getAds,
+    staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
   const handleEnter = () => {
@@ -50,16 +55,6 @@ export default function Index() {
   const selectedTags = searchParams.get("tags")?.split(",").filter(Boolean) || [];
   const selectedProvinces = searchParams.get("provinces")?.split(",").filter(Boolean) || [];
   const selectedAgeGroups = searchParams.get("ageGroups")?.split(",").filter(Boolean) || [];
-
-  useEffect(() => {
-    const fetchAds = async () => {
-      setLoading(true);
-      const data = await getAds();
-      setAds(data);
-      setLoading(false);
-    };
-    fetchAds();
-  }, []);
 
   const updateFilter = (key: string, value: string | string[]) => {
     const newParams = new URLSearchParams(searchParams);
@@ -192,7 +187,8 @@ export default function Index() {
               onTypeChange={(type) => updateFilter("type", type === "all" ? "" : type)}
             />
             
-            {/* Filter Buttons - Category, Provinces, Age */}
+            {/* Filter Buttons - Category, Provinces, Age - Only show when type is not "all" */}
+            {adType !== "all" && (
             <div className="mt-4 flex flex-wrap gap-2 justify-center">
               {/* Category Filter */}
               <Popover>
@@ -309,6 +305,7 @@ export default function Index() {
                 </PopoverContent>
               </Popover>
             </div>
+            )}
           </div>
 
           {/* Search and Sort Bar */}
