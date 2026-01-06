@@ -224,6 +224,36 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_channels: {
+        Row: {
+          channel_name: string | null
+          channel_url: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          last_scraped_at: string | null
+        }
+        Insert: {
+          channel_name?: string | null
+          channel_url: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_scraped_at?: string | null
+        }
+        Update: {
+          channel_name?: string | null
+          channel_url?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_scraped_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
