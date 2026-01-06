@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Loader2, Plus, RefreshCw, ExternalLink, Image as ImageIcon, Send, ChevronLeft, Check } from "lucide-react";
+import { ArrowRight, Loader2, Plus, RefreshCw, ExternalLink, Image as ImageIcon, Send, Trash2, Download, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +13,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, PROVINCES, AD_TYPES } from "@/lib/constants";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 
 interface ScrapedAd {
   name: string;
@@ -23,7 +32,6 @@ interface ScrapedAd {
   adType: 'group' | 'channel';
   members?: number;
   imageUrl?: string;
-  selected?: boolean;
   cities?: string[];
 }
 
@@ -38,10 +46,10 @@ export default function TelegramScraper() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [scrapedAds, setScrapedAds] = useState<ScrapedAd[]>([]);
+  const [publishQueue, setPublishQueue] = useState<ScrapedAd[]>([]);
   const [defaultCategory, setDefaultCategory] = useState("chat");
   const [defaultAdType, setDefaultAdType] = useState<'group' | 'channel'>("group");
   const [viewMode, setViewMode] = useState<ViewMode>('scrape');
-  const [editingAdIndex, setEditingAdIndex] = useState<number | null>(null);
 
   const handleScrape = async () => {
     if (!channelUrl.trim()) {
@@ -69,14 +77,13 @@ export default function TelegramScraper() {
       if (data.success && data.ads) {
         const allCities = PROVINCES.map(p => p.value);
         
-        const adsWithSelection = data.ads.map((ad: ScrapedAd) => ({
+        const adsWithDefaults = data.ads.map((ad: ScrapedAd) => ({
           ...ad,
           category: defaultCategory,
           adType: defaultAdType,
-          selected: false,
           cities: allCities,
         }));
-        setScrapedAds(adsWithSelection);
+        setScrapedAds(adsWithDefaults);
         toast({
           title: "موفق",
           description: `${data.ads.length} آگهی پیدا شد`,
@@ -96,47 +103,85 @@ export default function TelegramScraper() {
     }
   };
 
-  const toggleAdSelection = (index: number) => {
-    setScrapedAds(prev => prev.map((ad, i) => 
-      i === index ? { ...ad, selected: !ad.selected } : ad
-    ));
+  const addToPublishQueue = (index: number) => {
+    const ad = scrapedAds[index];
+    if (!ad) return;
+    
+    // Check if already in queue
+    if (publishQueue.some(q => q.telegramLink === ad.telegramLink)) {
+      toast({
+        title: "توجه",
+        description: "این آگهی قبلاً به لیست انتشار اضافه شده",
+      });
+      return;
+    }
+    
+    setPublishQueue(prev => [...prev, ad]);
+    setScrapedAds(prev => prev.filter((_, i) => i !== index));
+    toast({
+      title: "اضافه شد",
+      description: `آگهی "${ad.name}" به لیست انتشار اضافه شد`,
+    });
   };
 
-  const selectAllAds = () => {
-    const allSelected = scrapedAds.every(ad => ad.selected);
-    setScrapedAds(prev => prev.map(ad => ({ ...ad, selected: !allSelected })));
+  const removeFromPublishQueue = (index: number) => {
+    const ad = publishQueue[index];
+    setPublishQueue(prev => prev.filter((_, i) => i !== index));
+    setScrapedAds(prev => [...prev, ad]);
   };
 
-  const updateAd = (index: number, updates: Partial<ScrapedAd>) => {
-    setScrapedAds(prev => prev.map((ad, i) => 
+  const updateQueuedAd = (index: number, updates: Partial<ScrapedAd>) => {
+    setPublishQueue(prev => prev.map((ad, i) => 
       i === index ? { ...ad, ...updates } : ad
     ));
   };
 
-  const goToPublish = () => {
-    const selectedAds = scrapedAds.filter(ad => ad.selected);
-    if (selectedAds.length === 0) {
+  const publishAd = async (index: number) => {
+    const ad = publishQueue[index];
+    if (!ad) return;
+
+    setIsSaving(true);
+
+    try {
+      const { error } = await supabase.from('ads').insert({
+        user_id: user?.id,
+        name: ad.name,
+        text: ad.text,
+        telegram_link: ad.telegramLink,
+        category: ad.category,
+        ad_type: ad.adType,
+        members: ad.members || 0,
+        image_url: ad.imageUrl || null,
+        cities: ad.cities || [],
+        is_approved: true,
+        status: 'active',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "موفق",
+        description: `آگهی "${ad.name}" منتشر شد`,
+      });
+
+      setPublishQueue(prev => prev.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error('Publish error:', error);
       toast({
         title: "خطا",
-        description: "حداقل یک آگهی انتخاب کنید",
+        description: "انتشار آگهی با مشکل مواجه شد",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setIsSaving(false);
     }
-    setViewMode('publish');
   };
 
-  const goBackToScrape = () => {
-    setViewMode('scrape');
-    setEditingAdIndex(null);
-  };
-
-  const publishSelectedAds = async () => {
-    const selectedAds = scrapedAds.filter(ad => ad.selected);
-    if (selectedAds.length === 0) {
+  const publishAllAds = async () => {
+    if (publishQueue.length === 0) {
       toast({
         title: "خطا",
-        description: "حداقل یک آگهی انتخاب کنید",
+        description: "لیست انتشار خالی است",
         variant: "destructive",
       });
       return;
@@ -145,7 +190,7 @@ export default function TelegramScraper() {
     setIsSaving(true);
 
     try {
-      const adsToInsert = selectedAds.map(ad => ({
+      const adsToInsert = publishQueue.map(ad => ({
         user_id: user?.id,
         name: ad.name,
         text: ad.text,
@@ -165,12 +210,10 @@ export default function TelegramScraper() {
 
       toast({
         title: "موفق",
-        description: `${selectedAds.length} آگهی منتشر شد`,
+        description: `${publishQueue.length} آگهی منتشر شد`,
       });
 
-      // Remove published ads and go back
-      setScrapedAds(prev => prev.filter(ad => !ad.selected));
-      setViewMode('scrape');
+      setPublishQueue([]);
     } catch (error) {
       console.error('Publish error:', error);
       toast({
@@ -209,354 +252,417 @@ export default function TelegramScraper() {
     );
   }
 
-  const selectedCount = scrapedAds.filter(ad => ad.selected).length;
-  const selectedAdsForPublish = scrapedAds.filter(ad => ad.selected);
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        {/* Sidebar */}
+        <Sidebar className="border-l" side="right">
+          <SidebarContent className="p-4">
+            <div className="mb-4">
+              <Button variant="ghost" asChild className="w-full justify-start gap-2 mb-4">
+                <Link to="/admin">
+                  <ArrowRight className="h-4 w-4" />
+                  پنل ادمین
+                </Link>
+              </Button>
+            </div>
+            
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setViewMode('scrape')}
+                      className={`w-full justify-start gap-3 p-3 ${viewMode === 'scrape' ? 'bg-primary/10 text-primary' : ''}`}
+                    >
+                      <Download className="h-5 w-5" />
+                      <div className="flex-1 text-right">
+                        <div className="font-medium">استخراج</div>
+                        <div className="text-xs text-muted-foreground">
+                          {scrapedAds.length} آگهی
+                        </div>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => setViewMode('publish')}
+                      className={`w-full justify-start gap-3 p-3 ${viewMode === 'publish' ? 'bg-primary/10 text-primary' : ''}`}
+                    >
+                      <FileText className="h-5 w-5" />
+                      <div className="flex-1 text-right">
+                        <div className="font-medium">انتشار و ثبت</div>
+                        <div className="text-xs text-muted-foreground">
+                          {publishQueue.length} آگهی در صف
+                        </div>
+                      </div>
+                      {publishQueue.length > 0 && (
+                        <Badge variant="default" className="mr-auto">
+                          {publishQueue.length}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
 
-  // Publish View
-  if (viewMode === 'publish') {
-    return (
-      <div className="min-h-screen gradient-hero py-8">
-        <div className="container max-w-4xl">
-          <Button variant="ghost" onClick={goBackToScrape} className="mb-6 gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            بازگشت به استخراج
-          </Button>
-
-          <Card className="shadow-card animate-slide-up mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle className="text-2xl flex items-center gap-2">
-                    <Send className="h-6 w-6" />
-                    انتشار آگهی‌ها
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedAdsForPublish.length} آگهی آماده انتشار - ویرایش کنید و منتشر نمایید
-                  </CardDescription>
-                </div>
-                <Button 
-                  onClick={publishSelectedAds} 
-                  disabled={isSaving || selectedAdsForPublish.length === 0}
-                  size="lg"
-                  className="gap-2"
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Send className="h-5 w-5" />
-                  )}
-                  انتشار {selectedAdsForPublish.length} آگهی
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <div className="space-y-4">
-            {selectedAdsForPublish.map((ad, idx) => {
-              const originalIndex = scrapedAds.findIndex(a => a.telegramLink === ad.telegramLink);
-              const isEditing = editingAdIndex === originalIndex;
-              
-              return (
-                <Card key={ad.telegramLink} className="shadow-card">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
-                      {/* Image */}
-                      <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                        {ad.imageUrl ? (
-                          <img 
-                            src={ad.imageUrl} 
-                            alt={ad.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
+        {/* Main Content */}
+        <main className="flex-1 gradient-hero py-8 overflow-auto">
+          <div className="container max-w-4xl">
+            {viewMode === 'scrape' ? (
+              <>
+                {/* Scrape Section */}
+                <Card className="shadow-card animate-slide-up mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      <Download className="h-6 w-6" />
+                      استخراج آگهی از تلگرام
+                    </CardTitle>
+                    <CardDescription>
+                      لینک کانال لینکدونی را وارد کنید تا آگهی‌ها استخراج شوند
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>نوع آگهی</Label>
+                        <Select value={defaultAdType} onValueChange={(val) => setDefaultAdType(val as 'group' | 'channel')}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AD_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      <div className="flex-1 space-y-4">
-                        {/* Name */}
-                        <div className="space-y-2">
-                          <Label>نام آگهی</Label>
-                          <Input
-                            value={ad.name}
-                            onChange={(e) => updateAd(originalIndex, { name: e.target.value })}
-                            placeholder="نام گروه یا کانال"
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <Label>دسته‌بندی پیش‌فرض</Label>
+                        <Select value={defaultCategory} onValueChange={setDefaultCategory}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map((cat) => (
+                              <SelectItem key={cat.value} value={cat.value}>
+                                <div className="flex items-center gap-2">
+                                  <cat.icon className="h-4 w-4" />
+                                  {cat.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-                        {/* Description */}
-                        <div className="space-y-2">
-                          <Label>توضیحات</Label>
-                          <Textarea
-                            value={ad.text}
-                            onChange={(e) => updateAd(originalIndex, { text: e.target.value })}
-                            placeholder="توضیحات آگهی"
-                            rows={3}
-                          />
-                        </div>
-
-                        {/* Type and Category */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="space-y-2">
-                            <Label>نوع</Label>
-                            <Select 
-                              value={ad.adType} 
-                              onValueChange={(val) => updateAd(originalIndex, { adType: val as 'group' | 'channel' })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {AD_TYPES.map((type) => (
-                                  <SelectItem key={type.value} value={type.value}>
-                                    {type.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>دسته‌بندی</Label>
-                            <Select 
-                              value={ad.category} 
-                              onValueChange={(val) => updateAd(originalIndex, { category: val })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {CATEGORIES.map((cat) => (
-                                  <SelectItem key={cat.value} value={cat.value}>
-                                    <div className="flex items-center gap-2">
-                                      <cat.icon className="h-4 w-4" />
-                                      {cat.label}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>تعداد اعضا</Label>
-                            <Input
-                              type="number"
-                              value={ad.members || ''}
-                              onChange={(e) => updateAd(originalIndex, { members: parseInt(e.target.value) || 0 })}
-                              placeholder="0"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>لینک</Label>
-                            <Input
-                              value={ad.telegramLink}
-                              onChange={(e) => updateAd(originalIndex, { telegramLink: e.target.value })}
-                              dir="ltr"
-                              className="text-left"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Remove from publish */}
-                        <div className="flex justify-end">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => toggleAdSelection(originalIndex)}
-                          >
-                            حذف از لیست انتشار
-                          </Button>
-                        </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="channel-url">لینک کانال تلگرام</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="channel-url"
+                          placeholder="https://t.me/channel_name"
+                          value={channelUrl}
+                          onChange={(e) => setChannelUrl(e.target.value)}
+                          dir="ltr"
+                          className="text-left"
+                        />
+                        <Button onClick={handleScrape} disabled={isLoading} className="gap-2">
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          استخراج
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
-  // Scrape View
-  return (
-    <div className="min-h-screen gradient-hero py-8">
-      <div className="container max-w-4xl">
-        <Button variant="ghost" asChild className="mb-6 gap-2">
-          <Link to="/admin">
-            <ArrowRight className="h-4 w-4" />
-            بازگشت به پنل ادمین
-          </Link>
-        </Button>
-
-        <Card className="shadow-card animate-slide-up mb-6">
-          <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <RefreshCw className="h-6 w-6" />
-              استخراج آگهی از تلگرام
-            </CardTitle>
-            <CardDescription>
-              لینک کانال لینکدونی را وارد کنید تا آگهی‌ها استخراج شوند
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>نوع آگهی</Label>
-                <Select value={defaultAdType} onValueChange={(val) => setDefaultAdType(val as 'group' | 'channel')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AD_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>دسته‌بندی پیش‌فرض</Label>
-                <Select value={defaultCategory} onValueChange={setDefaultCategory}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        <div className="flex items-center gap-2">
-                          <cat.icon className="h-4 w-4" />
-                          {cat.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="channel-url">لینک کانال تلگرام</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="channel-url"
-                  placeholder="https://t.me/channel_name"
-                  value={channelUrl}
-                  onChange={(e) => setChannelUrl(e.target.value)}
-                  dir="ltr"
-                  className="text-left"
-                />
-                <Button onClick={handleScrape} disabled={isLoading} className="gap-2">
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  استخراج
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {scrapedAds.length > 0 && (
-          <Card className="shadow-card animate-slide-up">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-4">
-                  <CardTitle>آگهی‌های یافت شده ({scrapedAds.length})</CardTitle>
-                  <Button variant="outline" size="sm" onClick={selectAllAds}>
-                    <Check className="h-4 w-4 ml-1" />
-                    {scrapedAds.every(ad => ad.selected) ? 'لغو انتخاب همه' : 'انتخاب همه'}
-                  </Button>
-                </div>
-                {selectedCount > 0 && (
-                  <Button onClick={goToPublish} className="gap-2">
-                    <Send className="h-4 w-4" />
-                    انتشار {selectedCount} آگهی
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {scrapedAds.map((ad, index) => (
-                  <div 
-                    key={index}
-                    className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      ad.selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => toggleAdSelection(index)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={ad.selected}
-                        onCheckedChange={() => toggleAdSelection(index)}
-                        className="mt-1"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      
-                      {/* Image preview */}
-                      {ad.imageUrl ? (
-                        <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                          <img 
-                            src={ad.imageUrl} 
-                            alt={ad.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-muted flex items-center justify-center">
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <h3 className="font-semibold truncate">{ad.name}</h3>
-                          <div className="flex items-center gap-2">
-                            {ad.members && (
-                              <Badge variant="outline" className="text-xs">
-                                {ad.members.toLocaleString('fa-IR')} عضو
-                              </Badge>
-                            )}
-                            <a 
-                              href={ad.telegramLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
+                {/* Scraped Ads List */}
+                {scrapedAds.length > 0 && (
+                  <Card className="shadow-card animate-slide-up">
+                    <CardHeader>
+                      <CardTitle>آگهی‌های یافت شده ({scrapedAds.length})</CardTitle>
+                      <CardDescription>
+                        روی "افزودن" کلیک کنید تا آگهی به بخش انتشار منتقل شود
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {scrapedAds.map((ad, index) => (
+                          <div 
+                            key={index}
+                            className="p-4 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
+                              {/* Image preview */}
+                              {ad.imageUrl ? (
+                                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                                  <img 
+                                    src={ad.imageUrl} 
+                                    alt={ad.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-muted flex items-center justify-center">
+                                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <h3 className="font-semibold truncate">{ad.name}</h3>
+                                  <div className="flex items-center gap-2">
+                                    {ad.members && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {ad.members.toLocaleString('fa-IR')} عضو
+                                      </Badge>
+                                    )}
+                                    <a 
+                                      href={ad.telegramLink} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-primary hover:underline"
+                                    >
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  </div>
+                                </div>
+                                
+                                <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                                  {ad.text}
+                                </p>
+                                
+                                <div className="flex justify-end mt-2">
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => addToPublishQueue(index)}
+                                    className="gap-1"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    افزودن به انتشار
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                          {ad.text}
-                        </p>
+                        ))}
                       </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Publish Section */}
+                <Card className="shadow-card animate-slide-up mb-6">
+                  <CardHeader>
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div>
+                        <CardTitle className="text-2xl flex items-center gap-2">
+                          <Send className="h-6 w-6" />
+                          انتشار و ثبت آگهی
+                        </CardTitle>
+                        <CardDescription>
+                          {publishQueue.length} آگهی در صف انتشار - ویرایش کنید و منتشر نمایید
+                        </CardDescription>
+                      </div>
+                      {publishQueue.length > 0 && (
+                        <Button 
+                          onClick={publishAllAds} 
+                          disabled={isSaving}
+                          size="lg"
+                          className="gap-2"
+                        >
+                          {isSaving ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Send className="h-5 w-5" />
+                          )}
+                          انتشار همه ({publishQueue.length})
+                        </Button>
+                      )}
                     </div>
+                  </CardHeader>
+                </Card>
+
+                {publishQueue.length === 0 ? (
+                  <Card className="shadow-card">
+                    <CardContent className="py-12 text-center">
+                      <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">
+                        هنوز آگهی‌ای به لیست انتشار اضافه نشده
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={() => setViewMode('scrape')}
+                      >
+                        رفتن به بخش استخراج
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {publishQueue.map((ad, index) => (
+                      <Card key={ad.telegramLink} className="shadow-card">
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-4">
+                            {/* Image */}
+                            <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                              {ad.imageUrl ? (
+                                <img 
+                                  src={ad.imageUrl} 
+                                  alt={ad.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 space-y-4">
+                              {/* Name */}
+                              <div className="space-y-2">
+                                <Label>نام آگهی</Label>
+                                <Input
+                                  value={ad.name}
+                                  onChange={(e) => updateQueuedAd(index, { name: e.target.value })}
+                                  placeholder="نام گروه یا کانال"
+                                />
+                              </div>
+
+                              {/* Description */}
+                              <div className="space-y-2">
+                                <Label>توضیحات</Label>
+                                <Textarea
+                                  value={ad.text}
+                                  onChange={(e) => updateQueuedAd(index, { text: e.target.value })}
+                                  placeholder="توضیحات آگهی"
+                                  rows={3}
+                                />
+                              </div>
+
+                              {/* Type and Category */}
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="space-y-2">
+                                  <Label>نوع</Label>
+                                  <Select 
+                                    value={ad.adType} 
+                                    onValueChange={(val) => updateQueuedAd(index, { adType: val as 'group' | 'channel' })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {AD_TYPES.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                          {type.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label>دسته‌بندی</Label>
+                                  <Select 
+                                    value={ad.category} 
+                                    onValueChange={(val) => updateQueuedAd(index, { category: val })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {CATEGORIES.map((cat) => (
+                                        <SelectItem key={cat.value} value={cat.value}>
+                                          <div className="flex items-center gap-2">
+                                            <cat.icon className="h-4 w-4" />
+                                            {cat.label}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label>تعداد اعضا</Label>
+                                  <Input
+                                    type="number"
+                                    value={ad.members || ''}
+                                    onChange={(e) => updateQueuedAd(index, { members: parseInt(e.target.value) || 0 })}
+                                    placeholder="0"
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label>لینک</Label>
+                                  <Input
+                                    value={ad.telegramLink}
+                                    onChange={(e) => updateQueuedAd(index, { telegramLink: e.target.value })}
+                                    dir="ltr"
+                                    className="text-left"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex justify-between items-center pt-2 border-t">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => removeFromPublishQueue(index)}
+                                  className="text-destructive hover:text-destructive gap-1"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  حذف از لیست
+                                </Button>
+                                <Button 
+                                  size="sm"
+                                  onClick={() => publishAd(index)}
+                                  disabled={isSaving}
+                                  className="gap-1"
+                                >
+                                  {isSaving ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Send className="h-4 w-4" />
+                                  )}
+                                  انتشار این آگهی
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                )}
+              </>
+            )}
+          </div>
+        </main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
