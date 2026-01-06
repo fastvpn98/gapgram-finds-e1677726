@@ -3,12 +3,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface TelegramPost {
-  text: string;
-  link?: string;
-  date?: string;
-}
-
 interface ScrapedAd {
   name: string;
   text: string;
@@ -16,6 +10,8 @@ interface ScrapedAd {
   category: string;
   adType: 'group' | 'channel';
   members?: number;
+  imageUrl?: string;
+  date?: string;
 }
 
 Deno.serve(async (req) => {
@@ -24,7 +20,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { channelUrl } = await req.json();
+    const { channelUrl, adType = 'group' } = await req.json();
 
     if (!channelUrl) {
       return new Response(
@@ -52,7 +48,7 @@ Deno.serve(async (req) => {
 
     console.log('Scraping Telegram channel:', webUrl);
 
-    // Scrape the channel page
+    // Scrape the channel page with images
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -61,7 +57,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         url: webUrl,
-        formats: ['markdown', 'links'],
+        formats: ['markdown', 'html', 'links'],
         onlyMainContent: true,
       }),
     });
@@ -76,69 +72,110 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse the scraped content to extract ads
+    const html = data.data?.html || data.html || '';
     const markdown = data.data?.markdown || data.markdown || '';
-    const links = data.data?.links || data.links || [];
     
-    // Extract Telegram links from content
-    const telegramLinks: string[] = [];
-    const linkRegex = /https?:\/\/t\.me\/[^\s\)\]]+/g;
-    const foundLinks = markdown.match(linkRegex) || [];
-    telegramLinks.push(...foundLinks);
-    
-    // Also get links from the links array
-    links.forEach((link: string) => {
-      if (link.includes('t.me/') && !link.includes('/s/')) {
-        telegramLinks.push(link);
-      }
-    });
-
-    // Remove duplicates and filter
-    const uniqueLinks = [...new Set(telegramLinks)]
-      .filter(link => !link.includes('/s/'))
-      .slice(0, 20); // Limit to 20 ads per scrape
-
-    // Parse ads from content
+    // Parse posts from HTML - each post is typically in a message container
     const ads: ScrapedAd[] = [];
-    const sections = markdown.split(/\n{2,}/);
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     
-    for (const section of sections) {
-      const trimmed = section.trim();
+    // Split by common Telegram post separators in markdown
+    const posts = markdown.split(/\n---\n|\n\*\*\*\n|\n_{3,}\n/);
+    
+    // Also try to extract images from HTML
+    const imageRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+    const images: string[] = [];
+    let imgMatch;
+    while ((imgMatch = imageRegex.exec(html)) !== null) {
+      const src = imgMatch[1];
+      if (src && !src.includes('emoji') && !src.includes('icon')) {
+        images.push(src);
+      }
+    }
+    
+    // Extract telegram links
+    const telegramLinkRegex = /https?:\/\/t\.me\/[a-zA-Z0-9_]+/gi;
+    
+    let imageIndex = 0;
+    
+    for (const post of posts) {
+      const trimmed = post.trim();
       if (trimmed.length < 20) continue;
       
-      // Try to find a telegram link in this section
-      const sectionLinks = trimmed.match(linkRegex);
-      if (!sectionLinks || sectionLinks.length === 0) continue;
+    // Find telegram links in this post
+      const links: string[] = trimmed.match(telegramLinkRegex) || [];
+      const telegramLink = links.find((l: string) => !l.includes('/s/')) || '';
       
-      const telegramLink = sectionLinks.find((l: string) => !l.includes('/s/'));
       if (!telegramLink) continue;
       
-      // Extract name (first line or first sentence)
-      const lines = trimmed.split('\n').filter((l: string) => l.trim());
-      const name = lines[0]?.replace(/[#*_\[\]]/g, '').trim().slice(0, 50) || 'آگهی جدید';
+      // Check for date in post (Telegram posts often have dates)
+      // For now, include all posts and let frontend filter
       
-      // Clean text
-      const text = trimmed
-        .replace(linkRegex, '')
-        .replace(/[#*_\[\]]/g, '')
+      // Extract name from first line
+      const lines = trimmed.split('\n').filter((l: string) => l.trim());
+      let name = lines[0]?.replace(/[#*_\[\]`]/g, '').trim().slice(0, 50) || '';
+      
+      // If name looks like a date or is too short, try second line
+      if (name.length < 5 || /^\d/.test(name)) {
+        name = lines[1]?.replace(/[#*_\[\]`]/g, '').trim().slice(0, 50) || name;
+      }
+      
+      // Clean the text
+      let text = trimmed
+        .replace(telegramLinkRegex, '')
+        .replace(/[#*_\[\]`]/g, '')
         .trim()
-        .slice(0, 300);
+        .slice(0, 500);
       
       if (text.length < 20) continue;
       
-      // Detect if it's a group or channel
-      const isChannel = telegramLink.toLowerCase().includes('channel') || 
-                       trimmed.toLowerCase().includes('کانال') ||
-                       trimmed.toLowerCase().includes('channel');
+      // Extract member count if present
+      let members: number | undefined;
+      const memberMatch = text.match(/(\d+(?:[,\s]\d+)*)\s*(عضو|نفر|member)/i);
+      if (memberMatch) {
+        members = parseInt(memberMatch[1].replace(/[,\s]/g, ''), 10);
+      }
+      
+      // Use image if available
+      const imageUrl = images[imageIndex] || undefined;
+      if (imageUrl) imageIndex++;
+      
+      // If no name found, extract from telegram link
+      if (!name || name.length < 3) {
+        const linkMatch = telegramLink.match(/t\.me\/([a-zA-Z0-9_]+)/);
+        name = linkMatch ? linkMatch[1] : 'آگهی تلگرام';
+      }
       
       ads.push({
-        name: name || 'آگهی تلگرام',
+        name,
         text,
         telegramLink,
-        category: 'social', // Default category
-        adType: isChannel ? 'channel' : 'group',
-        members: undefined,
+        category: 'chat', // Default category
+        adType: adType as 'group' | 'channel',
+        members,
+        imageUrl,
       });
+    }
+    
+    // If no structured posts found, try to extract from raw content
+    if (ads.length === 0) {
+      const allLinks: string[] = markdown.match(telegramLinkRegex) || [];
+      const uniqueLinks = [...new Set(allLinks)].filter((l: string) => !l.includes('/s/'));
+      
+      for (const link of uniqueLinks.slice(0, 20)) {
+        const linkMatch = link.match(/t\.me\/([a-zA-Z0-9_]+)/);
+        const name = linkMatch ? linkMatch[1] : 'آگهی تلگرام';
+        
+        ads.push({
+          name,
+          text: `لینک ${adType === 'channel' ? 'کانال' : 'گروه'}: ${link}`,
+          telegramLink: link,
+          category: 'chat',
+          adType: adType as 'group' | 'channel',
+          imageUrl: images[ads.length] || undefined,
+        });
+      }
     }
 
     console.log(`Found ${ads.length} ads from channel`);
@@ -146,8 +183,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        ads,
-        totalLinks: uniqueLinks.length,
+        ads: ads.slice(0, 30), // Limit to 30 ads
         channelUrl: webUrl
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
