@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, Loader2, Plus, RefreshCw, Trash2, ExternalLink, Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Loader2, Plus, RefreshCw, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AD_TYPES } from "@/lib/constants";
 
 interface ScrapedAd {
   name: string;
@@ -21,20 +21,22 @@ interface ScrapedAd {
   category: string;
   adType: 'group' | 'channel';
   members?: number;
+  imageUrl?: string;
   selected?: boolean;
+  cities?: string[];
 }
 
 export default function TelegramScraper() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: roleLoading } = useUserRole();
   
   const [channelUrl, setChannelUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState<string | null>(null);
   const [scrapedAds, setScrapedAds] = useState<ScrapedAd[]>([]);
-  const [defaultCategory, setDefaultCategory] = useState("social");
+  const [defaultCategory, setDefaultCategory] = useState("chat");
+  const [defaultAdType, setDefaultAdType] = useState<'group' | 'channel'>("group");
 
   const handleScrape = async () => {
     if (!channelUrl.trim()) {
@@ -51,16 +53,24 @@ export default function TelegramScraper() {
 
     try {
       const { data, error } = await supabase.functions.invoke('scrape-telegram', {
-        body: { channelUrl: channelUrl.trim() },
+        body: { 
+          channelUrl: channelUrl.trim(),
+          adType: defaultAdType,
+        },
       });
 
       if (error) throw error;
 
       if (data.success && data.ads) {
+        // Get all province values for default cities
+        const allCities = PROVINCES.map(p => p.value);
+        
         const adsWithSelection = data.ads.map((ad: ScrapedAd) => ({
           ...ad,
           category: defaultCategory,
-          selected: true,
+          adType: defaultAdType,
+          selected: false,
+          cities: allCities, // Default to all cities
         }));
         setScrapedAds(adsWithSelection);
         toast({
@@ -88,15 +98,60 @@ export default function TelegramScraper() {
     ));
   };
 
-  const toggleAllAds = () => {
-    const allSelected = scrapedAds.every(ad => ad.selected);
-    setScrapedAds(prev => prev.map(ad => ({ ...ad, selected: !allSelected })));
-  };
-
   const updateAdCategory = (index: number, category: string) => {
     setScrapedAds(prev => prev.map((ad, i) => 
       i === index ? { ...ad, category } : ad
     ));
+  };
+
+  const updateAdType = (index: number, adType: 'group' | 'channel') => {
+    setScrapedAds(prev => prev.map((ad, i) => 
+      i === index ? { ...ad, adType } : ad
+    ));
+  };
+
+  const saveSingleAd = async (index: number) => {
+    const ad = scrapedAds[index];
+    if (!ad) return;
+
+    setIsSaving(`single-${index}`);
+
+    try {
+      const adToInsert = {
+        user_id: user?.id,
+        name: ad.name,
+        text: ad.text,
+        telegram_link: ad.telegramLink,
+        category: ad.category,
+        ad_type: ad.adType,
+        members: ad.members || 0,
+        image_url: ad.imageUrl || null,
+        cities: ad.cities || [],
+        is_approved: true,
+        status: 'active',
+      };
+
+      const { error } = await supabase.from('ads').insert(adToInsert);
+
+      if (error) throw error;
+
+      toast({
+        title: "موفق",
+        description: `آگهی "${ad.name}" ذخیره شد`,
+      });
+
+      // Remove the saved ad from list
+      setScrapedAds(prev => prev.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({
+        title: "خطا",
+        description: "ذخیره آگهی با مشکل مواجه شد",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(null);
+    }
   };
 
   const saveSelectedAds = async () => {
@@ -110,7 +165,7 @@ export default function TelegramScraper() {
       return;
     }
 
-    setIsSaving(true);
+    setIsSaving('bulk');
 
     try {
       const adsToInsert = selectedAds.map(ad => ({
@@ -121,7 +176,9 @@ export default function TelegramScraper() {
         category: ad.category,
         ad_type: ad.adType,
         members: ad.members || 0,
-        is_approved: true, // Auto-approve scraped ads
+        image_url: ad.imageUrl || null,
+        cities: ad.cities || [],
+        is_approved: true,
         status: 'active',
       }));
 
@@ -134,8 +191,8 @@ export default function TelegramScraper() {
         description: `${selectedAds.length} آگهی ذخیره شد`,
       });
 
-      setScrapedAds([]);
-      setChannelUrl("");
+      // Remove saved ads from list
+      setScrapedAds(prev => prev.filter(ad => !ad.selected));
     } catch (error) {
       console.error('Save error:', error);
       toast({
@@ -144,7 +201,7 @@ export default function TelegramScraper() {
         variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsSaving(null);
     }
   };
 
@@ -197,6 +254,43 @@ export default function TelegramScraper() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>نوع آگهی</Label>
+                <Select value={defaultAdType} onValueChange={(val) => setDefaultAdType(val as 'group' | 'channel')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AD_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>دسته‌بندی پیش‌فرض</Label>
+                <Select value={defaultCategory} onValueChange={setDefaultCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        <div className="flex items-center gap-2">
+                          <cat.icon className="h-4 w-4" />
+                          {cat.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="channel-url">لینک کانال تلگرام</Label>
               <div className="flex gap-2">
@@ -218,49 +312,27 @@ export default function TelegramScraper() {
                 </Button>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label>دسته‌بندی پیش‌فرض</Label>
-              <Select value={defaultCategory} onValueChange={setDefaultCategory}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      <div className="flex items-center gap-2">
-                        <cat.icon className="h-4 w-4" />
-                        {cat.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </CardContent>
         </Card>
 
         {scrapedAds.length > 0 && (
           <Card className="shadow-card animate-slide-up">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle>آگهی‌های یافت شده ({scrapedAds.length})</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={toggleAllAds}>
-                    {scrapedAds.every(ad => ad.selected) ? 'لغو همه' : 'انتخاب همه'}
-                  </Button>
+                {selectedCount > 0 && (
                   <Button 
                     onClick={saveSelectedAds} 
-                    disabled={isSaving || selectedCount === 0}
+                    disabled={isSaving === 'bulk'}
                   >
-                    {isSaving ? (
+                    {isSaving === 'bulk' ? (
                       <Loader2 className="h-4 w-4 animate-spin ml-2" />
                     ) : (
                       <Plus className="h-4 w-4 ml-2" />
                     )}
-                    ذخیره {selectedCount} آگهی
+                    ذخیره {selectedCount} آگهی انتخاب شده
                   </Button>
-                </div>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -278,13 +350,35 @@ export default function TelegramScraper() {
                         onCheckedChange={() => toggleAdSelection(index)}
                         className="mt-1"
                       />
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold">{ad.name}</h3>
+                      
+                      {/* Image preview */}
+                      {ad.imageUrl && (
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                          <img 
+                            src={ad.imageUrl} 
+                            alt={ad.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                      {!ad.imageUrl && (
+                        <div className="w-16 h-16 rounded-lg flex-shrink-0 bg-muted flex items-center justify-center">
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 space-y-2 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <h3 className="font-semibold truncate">{ad.name}</h3>
                           <div className="flex items-center gap-2">
-                            <Badge variant={ad.adType === 'channel' ? 'default' : 'secondary'}>
-                              {ad.adType === 'channel' ? 'کانال' : 'گروه'}
-                            </Badge>
+                            {ad.members && (
+                              <Badge variant="outline">
+                                {ad.members.toLocaleString('fa-IR')} عضو
+                              </Badge>
+                            )}
                             <a 
                               href={ad.telegramLink} 
                               target="_blank" 
@@ -295,29 +389,67 @@ export default function TelegramScraper() {
                             </a>
                           </div>
                         </div>
+                        
                         <p className="text-sm text-muted-foreground line-clamp-2">
                           {ad.text}
                         </p>
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs">دسته‌بندی:</Label>
-                          <Select 
-                            value={ad.category} 
-                            onValueChange={(val) => updateAdCategory(index, val)}
+                        
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs">نوع:</Label>
+                            <Select 
+                              value={ad.adType} 
+                              onValueChange={(val) => updateAdType(index, val as 'group' | 'channel')}
+                            >
+                              <SelectTrigger className="h-8 w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {AD_TYPES.map((type) => (
+                                  <SelectItem key={type.value} value={type.value}>
+                                    {type.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs">دسته‌بندی:</Label>
+                            <Select 
+                              value={ad.category} 
+                              onValueChange={(val) => updateAdCategory(index, val)}
+                            >
+                              <SelectTrigger className="h-8 w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CATEGORIES.map((cat) => (
+                                  <SelectItem key={cat.value} value={cat.value}>
+                                    <div className="flex items-center gap-2">
+                                      <cat.icon className="h-3 w-3" />
+                                      {cat.label}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => saveSingleAd(index)}
+                            disabled={isSaving === `single-${index}`}
+                            className="mr-auto"
                           >
-                            <SelectTrigger className="h-8 w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CATEGORIES.map((cat) => (
-                                <SelectItem key={cat.value} value={cat.value}>
-                                  <div className="flex items-center gap-2">
-                                    <cat.icon className="h-3 w-3" />
-                                    {cat.label}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            {isSaving === `single-${index}` ? (
+                              <Loader2 className="h-3 w-3 animate-spin ml-1" />
+                            ) : (
+                              <Plus className="h-3 w-3 ml-1" />
+                            )}
+                            اضافه کردن
+                          </Button>
                         </div>
                       </div>
                     </div>

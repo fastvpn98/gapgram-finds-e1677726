@@ -21,6 +21,7 @@ export interface Category {
 }
 
 export const CATEGORIES: Category[] = [
+  { value: "chat", label: "چت و سرگرمی", icon: Users },
   { value: "shopping", label: "خرید و فروش", icon: ShoppingBag },
   { value: "jobs", label: "کار و استخدام", icon: Briefcase },
   { value: "education", label: "آموزش", icon: GraduationCap },
