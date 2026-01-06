@@ -143,7 +143,7 @@ export default function TelegramScraper() {
     setIsSaving(true);
 
     try {
-      const { error } = await supabase.from('ads').insert({
+      const { data, error } = await supabase.from('ads').insert({
         user_id: user?.id,
         name: ad.name,
         text: ad.text,
@@ -155,9 +155,14 @@ export default function TelegramScraper() {
         cities: ad.cities || [],
         is_approved: true,
         status: 'active',
-      });
+      }).select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error details:', error);
+        throw error;
+      }
+
+      console.log('Ad inserted successfully:', data);
 
       toast({
         title: "موفق",
@@ -165,11 +170,11 @@ export default function TelegramScraper() {
       });
 
       setPublishQueue(prev => prev.filter((_, i) => i !== index));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Publish error:', error);
       toast({
-        title: "خطا",
-        description: "انتشار آگهی با مشکل مواجه شد",
+        title: "خطا در انتشار",
+        description: error?.message || "انتشار آگهی با مشکل مواجه شد",
         variant: "destructive",
       });
     } finally {
@@ -204,9 +209,16 @@ export default function TelegramScraper() {
         status: 'active',
       }));
 
-      const { error } = await supabase.from('ads').insert(adsToInsert);
+      console.log('Inserting ads:', adsToInsert);
 
-      if (error) throw error;
+      const { data, error } = await supabase.from('ads').insert(adsToInsert).select();
+
+      if (error) {
+        console.error('Batch insert error:', error);
+        throw error;
+      }
+
+      console.log('Ads inserted successfully:', data);
 
       toast({
         title: "موفق",
@@ -214,11 +226,11 @@ export default function TelegramScraper() {
       });
 
       setPublishQueue([]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Publish error:', error);
       toast({
-        title: "خطا",
-        description: "انتشار آگهی‌ها با مشکل مواجه شد",
+        title: "خطا در انتشار",
+        description: error?.message || "انتشار آگهی‌ها با مشکل مواجه شد",
         variant: "destructive",
       });
     } finally {
