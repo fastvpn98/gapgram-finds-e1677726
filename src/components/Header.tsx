@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { PlusCircle, MessageCircle, LogOut, LayoutDashboard, User, Shield, BarChart3, CheckCircle, Users, FileEdit, RefreshCw } from "lucide-react";
+import { PlusCircle, MessageCircle, LogOut, LayoutDashboard, User, Shield, BarChart3, CheckCircle, Users, FileEdit, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -117,6 +117,12 @@ export function Header() {
                             <Link to="/telegram-scraper">
                               <RefreshCw className="ml-2 h-4 w-4" />
                               استخراج از تلگرام
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link to="/seo">
+                              <Search className="ml-2 h-4 w-4" />
+                              پنل سئو
                             </Link>
                           </DropdownMenuItem>
                         </>

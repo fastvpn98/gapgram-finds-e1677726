@@ -40,10 +40,14 @@ Deno.serve(async (req) => {
 
     // Format channel URL for web preview
     let webUrl = channelUrl.trim();
-    if (webUrl.startsWith('https://t.me/')) {
-      webUrl = webUrl.replace('https://t.me/', 'https://t.me/s/');
-    } else if (!webUrl.includes('/s/')) {
-      webUrl = webUrl.replace('t.me/', 't.me/s/');
+    // Remove any existing /s/ first to avoid duplication
+    webUrl = webUrl.replace('/s/', '/');
+    // Extract channel name and create proper URL
+    const channelMatch = webUrl.match(/t\.me\/([a-zA-Z0-9_]+)/);
+    if (channelMatch) {
+      webUrl = `https://t.me/s/${channelMatch[1]}`;
+    } else if (!webUrl.startsWith('https://')) {
+      webUrl = `https://t.me/s/${webUrl}`;
     }
 
     console.log('Scraping Telegram channel:', webUrl);
