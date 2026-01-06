@@ -17,6 +17,7 @@ import ManageRoles from "./pages/ManageRoles";
 import ManageAds from "./pages/ManageAds";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
+import TelegramScraper from "./pages/TelegramScraper";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/manage-ads" element={<ManageAds />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/change-password" element={<ChangePassword />} />
+              <Route path="/telegram-scraper" element={<TelegramScraper />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

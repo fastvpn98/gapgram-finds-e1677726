@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Plus, X, Users, MessageCircle, Radio } from "lucide-react";
+import { Loader2, Plus, X, Users, MessageCircle, Radio, Upload, Image } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -87,6 +88,10 @@ export function AdSubmissionForm() {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTag, setCustomTag] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -135,6 +140,78 @@ export function AdSubmissionForm() {
     );
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "خطا",
+        description: "حجم تصویر نباید بیش از ۵ مگابایت باشد",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "خطا",
+        description: "فقط فایل‌های تصویری مجاز هستند",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile || !user) return null;
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('ad-images')
+        .upload(fileName, imageFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('ad-images')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "خطا",
+        description: "آپلود تصویر با مشکل مواجه شد",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!user) {
       toast({
@@ -148,6 +225,15 @@ export function AdSubmissionForm() {
 
     setIsSubmitting(true);
     try {
+      // Upload image if selected
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        const uploadedUrl = await uploadImage();
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        }
+      }
+
       const provinces =
         data.provinceTarget === "all"
           ? []
@@ -170,6 +256,7 @@ export function AdSubmissionForm() {
         minAge: data.ageTarget === "custom" ? data.minAge ?? undefined : undefined,
         maxAge: data.ageTarget === "custom" ? data.maxAge ?? undefined : undefined,
         tags: data.tags,
+        imageUrl,
       }, user.id);
 
       if (result) {
@@ -368,6 +455,54 @@ export function AdSubmissionForm() {
             </FormItem>
           )}
         />
+
+        {/* Image Upload */}
+        <div className="space-y-3">
+          <Label>تصویر آگهی (اختیاری)</Label>
+          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+              id="ad-image-upload"
+            />
+            {imagePreview ? (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="پیش‌نمایش"
+                  className="mx-auto max-h-48 rounded-lg object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 left-2"
+                  onClick={removeImage}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <label
+                htmlFor="ad-image-upload"
+                className="cursor-pointer flex flex-col items-center gap-2 py-4"
+              >
+                <div className="p-3 rounded-full bg-muted">
+                  <Image className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  کلیک کنید یا تصویر را بکشید
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  حداکثر ۵ مگابایت - JPG, PNG, WebP
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
 
         {/* Province Targeting */}
         <FormField
