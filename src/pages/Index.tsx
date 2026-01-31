@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Search, LayoutGrid, Grid3X3, MapPin, Users } from "lucide-react";
+import { Search, LayoutGrid, Grid3X3, MapPin, Users, Send, MessageSquare, MessageCircle, Radio } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,8 +23,9 @@ import { AdListSkeleton } from "@/components/AdCardSkeleton";
 import { TypeToggle } from "@/components/TypeToggle";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import { getAds } from "@/lib/ads";
-import { CATEGORIES, PROVINCES, AGE_GROUPS } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AGE_GROUPS, PLATFORMS } from "@/lib/constants";
 import { trackSiteVisit } from "@/lib/analytics";
+import type { Platform } from "@/lib/types";
 
 type SortOption = "relevance" | "most-members" | "least-members" | "newest" | "oldest";
 
@@ -46,10 +47,11 @@ export default function Index() {
     trackSiteVisit("/");
   };
 
-  const category = searchParams.get("category") || "";
+const category = searchParams.get("category") || "";
   const query = searchParams.get("q") || "";
   const sort = (searchParams.get("sort") as SortOption) || "relevance";
   const adType = (searchParams.get("type") as "group" | "channel" | "all") || "all";
+  const platform = (searchParams.get("platform") as Platform | "all") || "all";
   
   // Filter params from clickable badges
   const selectedTags = searchParams.get("tags")?.split(",").filter(Boolean) || [];
@@ -82,8 +84,13 @@ export default function Index() {
     setSearchParams(new URLSearchParams());
   };
 
-  const filteredAndSortedAds = useMemo(() => {
+const filteredAndSortedAds = useMemo(() => {
     let result = [...ads];
+
+    // Filter by platform
+    if (platform !== "all") {
+      result = result.filter((ad) => ad.platform === platform);
+    }
 
     // Filter by ad type
     if (adType !== "all") {
@@ -154,10 +161,20 @@ export default function Index() {
         break;
     }
 
-    return result;
-  }, [ads, category, query, selectedTags, selectedProvinces, selectedAgeGroups, sort, adType]);
+return result;
+  }, [ads, category, query, selectedTags, selectedProvinces, selectedAgeGroups, sort, adType, platform]);
 
-  const hasActiveFilters = category || selectedTags.length > 0 || selectedProvinces.length > 0 || selectedAgeGroups.length > 0;
+  const hasActiveFilters = category || platform !== "all" || selectedTags.length > 0 || selectedProvinces.length > 0 || selectedAgeGroups.length > 0;
+
+  const getPlatformIcon = (platformValue: string) => {
+    switch (platformValue) {
+      case "telegram": return <Send className="h-4 w-4" />;
+      case "eitaa": return <MessageSquare className="h-4 w-4" />;
+      case "bale": return <MessageCircle className="h-4 w-4" />;
+      case "rubika": return <Radio className="h-4 w-4" />;
+      default: return <Send className="h-4 w-4" />;
+    }
+  };
 
   return (
     <div className="min-h-screen gradient-hero flex flex-col">
@@ -179,8 +196,34 @@ export default function Index() {
       {/* Sticky Filter Section */}
       <section className="sticky top-16 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container py-4 space-y-4">
-          {/* Type Toggle + Filter Buttons */}
+{/* Type Toggle + Platform Filter + Filter Buttons */}
           <div className="rounded-xl border bg-card p-4 shadow-card">
+            {/* Platform Filter - NEW */}
+            <h2 className="mb-4 font-bold text-foreground text-center">پیام‌رسان</h2>
+            <div className="flex flex-wrap justify-center gap-2 mb-4">
+              <Button
+                variant={platform === "all" ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => updateFilter("platform", "")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                همه
+              </Button>
+              {PLATFORMS.map((p) => (
+                <Button
+                  key={p.value}
+                  variant={platform === p.value ? "default" : "outline"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => updateFilter("platform", p.value)}
+                >
+                  {getPlatformIcon(p.value)}
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+
             <h2 className="mb-4 font-bold text-foreground text-center">نوع آگهی</h2>
             <TypeToggle
               selectedType={adType}

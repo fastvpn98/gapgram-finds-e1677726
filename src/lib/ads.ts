@@ -24,6 +24,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.95,
     adType: "channel",
+    platform: "telegram",
   },
   {
     name: "استخدام برنامه‌نویس",
@@ -37,6 +38,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.88,
     adType: "group",
+    platform: "telegram",
   },
   {
     name: "آموزش زبان انگلیسی",
@@ -50,6 +52,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth", "adults", "middle"],
     relevanceScore: 0.92,
     adType: "channel",
+    platform: "eitaa",
   },
   {
     name: "گیمرهای ایران",
@@ -63,6 +66,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth"],
     relevanceScore: 0.85,
     adType: "group",
+    platform: "bale",
   },
   {
     name: "سلامت و تندرستی",
@@ -76,6 +80,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["adults", "middle", "senior"],
     relevanceScore: 0.82,
     adType: "channel",
+    platform: "rubika",
   },
   {
     name: "اخبار روز ایران",
@@ -89,6 +94,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["all"],
     relevanceScore: 0.98,
     adType: "channel",
+    platform: "telegram",
   },
   {
     name: "موسیقی پاپ ایران",
@@ -102,6 +108,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.89,
     adType: "channel",
+    platform: "eitaa",
   },
   {
     name: "رستوران‌های تهران",
@@ -115,6 +122,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth", "adults", "middle"],
     relevanceScore: 0.78,
     adType: "group",
+    platform: "telegram",
   },
   {
     name: "خرید و فروش خودرو",
@@ -128,6 +136,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["adults", "middle"],
     relevanceScore: 0.86,
     adType: "group",
+    platform: "bale",
   },
   {
     name: "املاک و مستغلات",
@@ -141,6 +150,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["adults", "middle", "senior"],
     relevanceScore: 0.91,
     adType: "channel",
+    platform: "rubika",
   },
   {
     name: "تکنولوژی و گجت",
@@ -154,6 +164,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["youth", "adults"],
     relevanceScore: 0.93,
     adType: "channel",
+    platform: "telegram",
   },
   {
     name: "همشهری تهران",
@@ -167,6 +178,7 @@ const seedAds: Omit<RankedAd, "id" | "createdAt">[] = [
     ageGroups: ["all"],
     relevanceScore: 0.75,
     adType: "group",
+    platform: "eitaa",
   },
 ];
 
@@ -186,6 +198,7 @@ function mapDbAdToRankedAd(dbAd: {
   relevance_score: number | null;
   created_at: string;
   ad_type?: string;
+  platform?: string;
 }): RankedAd {
   return {
     id: dbAd.id,
@@ -203,6 +216,7 @@ function mapDbAdToRankedAd(dbAd: {
     relevanceScore: dbAd.relevance_score || 0.5,
     createdAt: dbAd.created_at,
     adType: (dbAd.ad_type as 'group' | 'channel') || 'group',
+    platform: (dbAd.platform as 'telegram' | 'eitaa' | 'bale' | 'rubika') || 'telegram',
   };
 }
 
@@ -231,7 +245,7 @@ export async function getAds(): Promise<RankedAd[]> {
 }
 
 async function seedDatabase() {
-  const adsToInsert = seedAds.map((ad) => ({
+const adsToInsert = seedAds.map((ad) => ({
     name: ad.name,
     text: ad.text,
     category: ad.category,
@@ -243,6 +257,7 @@ async function seedDatabase() {
     age_groups: ad.ageGroups,
     relevance_score: ad.relevanceScore,
     ad_type: ad.adType,
+    platform: ad.platform,
   }));
 
   const { error } = await supabase.from("ads").insert(adsToInsert);
@@ -269,6 +284,7 @@ export async function addAd(data: AdFormData, userId: string): Promise<RankedAd 
       max_age: data.maxAge,
       relevance_score: Math.random() * 0.3 + 0.7,
       ad_type: data.adType,
+      platform: data.platform,
     })
     .select()
     .single();
@@ -337,6 +353,7 @@ export async function updateAd(adId: string, data: Partial<AdFormData>): Promise
   if (data.minAge !== undefined) updateData.min_age = data.minAge;
   if (data.maxAge !== undefined) updateData.max_age = data.maxAge;
   if (data.adType !== undefined) updateData.ad_type = data.adType;
+  if (data.platform !== undefined) updateData.platform = data.platform;
 
   const { data: updatedAd, error } = await supabase
     .from("ads")

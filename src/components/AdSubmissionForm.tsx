@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Plus, X, Users, MessageCircle, Radio, Upload, Image } from "lucide-react";
+import { Loader2, Plus, X, Users, MessageCircle, Radio, Image, Send, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,13 +29,16 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { CATEGORIES, PROVINCES, AGE_GROUPS } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AGE_GROUPS, PLATFORMS } from "@/lib/constants";
 import { addAd } from "@/lib/ads";
 
 const MAX_DESCRIPTION_LENGTH = 300;
 const MAX_TAGS = 5;
 
 const formSchema = z.object({
+  platform: z.enum(["telegram", "eitaa", "bale", "rubika"], {
+    required_error: "پیام‌رسان را انتخاب کنید",
+  }),
   adType: z.enum(["group", "channel"], {
     required_error: "نوع آگهی را انتخاب کنید",
   }),
@@ -50,11 +53,7 @@ const formSchema = z.object({
     .max(MAX_DESCRIPTION_LENGTH, `توضیحات نباید بیش از ${MAX_DESCRIPTION_LENGTH} کاراکتر باشد`),
   telegramLink: z
     .string()
-    .url("لینک معتبر وارد کنید")
-    .refine(
-      (val) => val.startsWith("https://t.me/"),
-      "لینک باید با https://t.me/ شروع شود"
-    ),
+    .url("لینک معتبر وارد کنید"),
   members: z.coerce
     .number({ invalid_type_error: "عدد معتبر وارد کنید" })
     .positive("تعداد اعضا باید مثبت باشد"),
@@ -93,9 +92,10 @@ export function AdSubmissionForm() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const form = useForm<FormData>({
+const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      platform: undefined,
       adType: undefined,
       category: "",
       name: "",
@@ -112,12 +112,13 @@ export function AdSubmissionForm() {
     },
   });
 
-  const watchText = form.watch("text");
+const watchText = form.watch("text");
   const watchProvinceTarget = form.watch("provinceTarget");
   const watchAgeTarget = form.watch("ageTarget");
   const watchTags = form.watch("tags");
   const watchCategory = form.watch("category");
   const watchAdType = form.watch("adType");
+  const watchPlatform = form.watch("platform");
 
   const handleAddTag = () => {
     const trimmedTag = customTag.trim();
@@ -244,7 +245,8 @@ export function AdSubmissionForm() {
           ? ["all"]
           : data.selectedAgeGroups;
 
-      const result = await addAd({
+const result = await addAd({
+        platform: data.platform,
         adType: data.adType,
         category: data.category,
         name: data.name,
@@ -281,10 +283,49 @@ export function AdSubmissionForm() {
 
   const selectedCategory = CATEGORIES.find((c) => c.value === watchCategory);
 
-  return (
+return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Ad Type - FIRST QUESTION */}
+        {/* Platform Selection - FIRST QUESTION */}
+        <FormField
+          control={form.control}
+          name="platform"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel className="text-lg font-semibold">پیام‌رسان *</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                >
+                  {PLATFORMS.map((platform) => (
+                    <div key={platform.value} className="flex-1">
+                      <RadioGroupItem 
+                        value={platform.value} 
+                        id={`platform-${platform.value}`} 
+                        className="peer sr-only" 
+                      />
+                      <Label 
+                        htmlFor={`platform-${platform.value}`} 
+                        className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                      >
+                        {platform.value === "telegram" && <Send className="h-6 w-6 mb-1" />}
+                        {platform.value === "eitaa" && <MessageSquare className="h-6 w-6 mb-1" />}
+                        {platform.value === "bale" && <MessageCircle className="h-6 w-6 mb-1" />}
+                        {platform.value === "rubika" && <Radio className="h-6 w-6 mb-1" />}
+                        <span className="font-medium text-sm">{platform.label}</span>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Ad Type - SECOND QUESTION */}
         <FormField
           control={form.control}
           name="adType"
@@ -411,22 +452,22 @@ export function AdSubmissionForm() {
           )}
         />
 
-        {/* Telegram Link */}
+{/* Link */}
         <FormField
           control={form.control}
           name="telegramLink"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>لینک تلگرام *</FormLabel>
+              <FormLabel>لینک {watchPlatform ? PLATFORMS.find(p => p.value === watchPlatform)?.label : "پیام‌رسان"} *</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="https://t.me/your_channel"
+                  placeholder={watchPlatform === "telegram" ? "https://t.me/your_channel" : "لینک گروه یا کانال"}
                   dir="ltr"
                   className="text-left"
                   {...field}
                 />
               </FormControl>
-              <p className="text-xs text-muted-foreground">لینک باید با https://t.me/ شروع شود</p>
+              <p className="text-xs text-muted-foreground">لینک کامل گروه یا کانال را وارد کنید</p>
               <FormMessage />
             </FormItem>
           )}

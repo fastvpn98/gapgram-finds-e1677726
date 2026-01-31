@@ -122,6 +122,7 @@ export type Database = {
           members: number | null
           min_age: number | null
           name: string
+          platform: string
           relevance_score: number | null
           status: string
           tags: string[] | null
@@ -144,6 +145,7 @@ export type Database = {
           members?: number | null
           min_age?: number | null
           name: string
+          platform?: string
           relevance_score?: number | null
           status?: string
           tags?: string[] | null
@@ -166,6 +168,7 @@ export type Database = {
           members?: number | null
           min_age?: number | null
           name?: string
+          platform?: string
           relevance_score?: number | null
           status?: string
           tags?: string[] | null
