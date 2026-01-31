@@ -12,7 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES, PROVINCES, AD_TYPES } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AD_TYPES, PLATFORMS } from "@/lib/constants";
+import type { Platform } from "@/lib/types";
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +31,7 @@ interface ScrapedAd {
   telegramLink: string;
   category: string;
   adType: 'group' | 'channel';
+  platform: Platform;
   members?: number;
   imageUrl?: string;
   cities?: string[];
@@ -46,9 +48,10 @@ export default function TelegramScraper() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [scrapedAds, setScrapedAds] = useState<ScrapedAd[]>([]);
-  const [publishQueue, setPublishQueue] = useState<ScrapedAd[]>([]);
+const [publishQueue, setPublishQueue] = useState<ScrapedAd[]>([]);
   const [defaultCategory, setDefaultCategory] = useState("chat");
   const [defaultAdType, setDefaultAdType] = useState<'group' | 'channel'>("group");
+  const [defaultPlatform, setDefaultPlatform] = useState<Platform>("telegram");
   const [viewMode, setViewMode] = useState<ViewMode>('scrape');
 
   const handleScrape = async () => {
@@ -74,13 +77,14 @@ export default function TelegramScraper() {
 
       if (error) throw error;
 
-      if (data.success && data.ads) {
+if (data.success && data.ads) {
         const allCities = PROVINCES.map(p => p.value);
         
         const adsWithDefaults = data.ads.map((ad: ScrapedAd) => ({
           ...ad,
           category: defaultCategory,
           adType: defaultAdType,
+          platform: defaultPlatform,
           cities: allCities,
         }));
         setScrapedAds(adsWithDefaults);
@@ -143,13 +147,14 @@ export default function TelegramScraper() {
     setIsSaving(true);
 
     try {
-      const { data, error } = await supabase.from('ads').insert({
+const { data, error } = await supabase.from('ads').insert({
         user_id: user?.id,
         name: ad.name,
         text: ad.text,
         telegram_link: ad.telegramLink,
         category: ad.category,
         ad_type: ad.adType,
+        platform: ad.platform,
         members: ad.members || 0,
         image_url: ad.imageUrl || null,
         cities: ad.cities || [],
@@ -195,13 +200,14 @@ export default function TelegramScraper() {
     setIsSaving(true);
 
     try {
-      const adsToInsert = publishQueue.map(ad => ({
+const adsToInsert = publishQueue.map(ad => ({
         user_id: user?.id,
         name: ad.name,
         text: ad.text,
         telegram_link: ad.telegramLink,
         category: ad.category,
         ad_type: ad.adType,
+        platform: ad.platform,
         members: ad.members || 0,
         image_url: ad.imageUrl || null,
         cities: ad.cities || [],
@@ -339,7 +345,23 @@ export default function TelegramScraper() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>پیام‌رسان</Label>
+                        <Select value={defaultPlatform} onValueChange={(val) => setDefaultPlatform(val as Platform)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PLATFORMS.map((platform) => (
+                              <SelectItem key={platform.value} value={platform.value}>
+                                {platform.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <div className="space-y-2">
                         <Label>نوع آگهی</Label>
                         <Select value={defaultAdType} onValueChange={(val) => setDefaultAdType(val as 'group' | 'channel')}>
@@ -574,8 +596,27 @@ export default function TelegramScraper() {
                                 />
                               </div>
 
-                              {/* Type and Category */}
+{/* Platform, Type and Category */}
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="space-y-2">
+                                  <Label>پیام‌رسان</Label>
+                                  <Select 
+                                    value={ad.platform} 
+                                    onValueChange={(val) => updateQueuedAd(index, { platform: val as Platform })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {PLATFORMS.map((platform) => (
+                                        <SelectItem key={platform.value} value={platform.value}>
+                                          {platform.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
                                 <div className="space-y-2">
                                   <Label>نوع</Label>
                                   <Select 

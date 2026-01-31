@@ -97,3 +97,11 @@ export const AD_TYPES = [
   { value: "group", label: "گروه" },
   { value: "channel", label: "کانال" },
 ];
+
+// Messenger platforms
+export const PLATFORMS = [
+  { value: "telegram", label: "تلگرام", icon: "Send" },
+  { value: "eitaa", label: "ایتا", icon: "MessageSquare" },
+  { value: "bale", label: "بله", icon: "MessageCircle" },
+  { value: "rubika", label: "روبیکا", icon: "Radio" },
+];

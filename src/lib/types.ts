@@ -1,3 +1,5 @@
+export type Platform = 'telegram' | 'eitaa' | 'bale' | 'rubika';
+
 export interface RankedAd {
   id: string;
   name: string;
@@ -17,11 +19,13 @@ export interface RankedAd {
   isApproved?: boolean;
   likesCount?: number;
   isLiked?: boolean;
-  adType: 'group' | 'channel';  // new field
+  adType: 'group' | 'channel';
+  platform: Platform;  // messenger platform
 }
 
 export interface AdFormData {
-  adType: 'group' | 'channel';  // new field - first question
+  adType: 'group' | 'channel';
+  platform: Platform;  // messenger platform - first question
   category: string;
   name: string;
   text: string;

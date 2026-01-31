@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { faIR } from "date-fns/locale";
-import { ExternalLink, Copy, Users, MapPin, UserCircle, Check, Heart, Tag, MessageCircle, Radio } from "lucide-react";
+import { ExternalLink, Copy, Users, MapPin, UserCircle, Check, Heart, Tag, MessageCircle, Radio, Send, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { RankedAd } from "@/lib/types";
-import { CATEGORIES, PROVINCES, AGE_GROUPS, TAGS } from "@/lib/constants";
+import { CATEGORIES, PROVINCES, AGE_GROUPS, TAGS, PLATFORMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { trackAdClick, likeAd, unlikeAd, getAdLikesCount, isAdLikedByUser } from "@/lib/analytics";
 
@@ -151,22 +151,55 @@ export function AdCard({ ad }: AdCardProps) {
     navigate(`/filter?age=${ageValue}`);
   };
 
-  const handleCategoryClick = (e: React.MouseEvent) => {
+const handleCategoryClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/filter?category=${ad.category}`);
   };
 
+  const handlePlatformClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/?platform=${ad.platform}`);
+  };
+
+  const getPlatformIcon = () => {
+    switch (ad.platform) {
+      case "telegram": return <Send className="h-3 w-3" />;
+      case "eitaa": return <MessageSquare className="h-3 w-3" />;
+      case "bale": return <MessageCircle className="h-3 w-3" />;
+      case "rubika": return <Radio className="h-3 w-3" />;
+      default: return <Send className="h-3 w-3" />;
+    }
+  };
+
+  const platformLabel = PLATFORMS.find(p => p.value === ad.platform)?.label || "تلگرام";
+
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-card-hover animate-fade-in">
       <div className="flex flex-col sm:flex-row">
-        <div className="relative h-48 sm:h-auto sm:w-48 flex-shrink-0 overflow-hidden">
+<div className="relative h-48 sm:h-auto sm:w-48 flex-shrink-0 overflow-hidden">
           <img
             src={ad.imageUrl || "/placeholder.svg"}
             alt={ad.name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent sm:bg-gradient-to-l" />
-          {/* Ad Type Badge */}
+          
+          {/* Platform Badge - Top Left */}
+          <Badge 
+            className={cn(
+              "absolute top-2 left-2 gap-1 cursor-pointer",
+              ad.platform === "telegram" ? "bg-blue-500 hover:bg-blue-600" : 
+              ad.platform === "eitaa" ? "bg-orange-500 hover:bg-orange-600" : 
+              ad.platform === "bale" ? "bg-green-500 hover:bg-green-600" : 
+              "bg-purple-500 hover:bg-purple-600"
+            )}
+            onClick={handlePlatformClick}
+          >
+            {getPlatformIcon()}
+            {platformLabel}
+          </Badge>
+
+          {/* Ad Type Badge - Top Right */}
           <Badge 
             className={cn(
               "absolute top-2 right-2 gap-1",
