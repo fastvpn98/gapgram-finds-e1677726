@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { faIR } from "date-fns/locale";
-import { ExternalLink, Copy, Users, MapPin, UserCircle, Check, Heart, Tag, MessageCircle, Radio, Send, MessageSquare } from "lucide-react";
+import { Users, MapPin, UserCircle, Heart, Tag, MessageCircle, Radio } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { RankedAd } from "@/lib/types";
 import { CATEGORIES, PROVINCES, AGE_GROUPS, TAGS, PLATFORMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { trackAdClick, likeAd, unlikeAd, getAdLikesCount, isAdLikedByUser } from "@/lib/analytics";
+import { likeAd, unlikeAd, getAdLikesCount, isAdLikedByUser } from "@/lib/analytics";
+import { PlatformLogo, getPlatformName } from "@/components/PlatformLogo";
 
 interface AdCardProps {
   ad: RankedAd;
@@ -23,7 +24,6 @@ export function AdCard({ ad }: AdCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [likeLoading, setLikeLoading] = useState(false);
@@ -107,28 +107,6 @@ export function AdCard({ ad }: AdCardProps) {
     }
   };
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(ad.telegramLink);
-      setCopied(true);
-      toast({
-        title: "کپی شد!",
-        description: "لینک تلگرام در کلیپ‌بورد کپی شد.",
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({
-        title: "خطا",
-        description: "کپی لینک با مشکل مواجه شد.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleVisit = async () => {
-    await trackAdClick(ad.id, user?.id);
-  };
-
   const formatMembers = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
     if (count >= 1000) return `${(count / 1000).toFixed(0)}K`;
@@ -151,7 +129,7 @@ export function AdCard({ ad }: AdCardProps) {
     navigate(`/filter?age=${ageValue}`);
   };
 
-const handleCategoryClick = (e: React.MouseEvent) => {
+  const handleCategoryClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/filter?category=${ad.category}`);
   };
@@ -161,64 +139,55 @@ const handleCategoryClick = (e: React.MouseEvent) => {
     navigate(`/?platform=${ad.platform}`);
   };
 
-  const getPlatformIcon = () => {
-    switch (ad.platform) {
-      case "telegram": return <Send className="h-3 w-3" />;
-      case "eitaa": return <MessageSquare className="h-3 w-3" />;
-      case "bale": return <MessageCircle className="h-3 w-3" />;
-      case "rubika": return <Radio className="h-3 w-3" />;
-      default: return <Send className="h-3 w-3" />;
-    }
-  };
-
   const platformLabel = PLATFORMS.find(p => p.value === ad.platform)?.label || "تلگرام";
 
   return (
-    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-card-hover animate-fade-in">
-      <div className="flex flex-col sm:flex-row">
-<div className="relative h-48 sm:h-auto sm:w-48 flex-shrink-0 overflow-hidden">
-          <img
-            src={ad.imageUrl || "/placeholder.svg"}
-            alt={ad.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent sm:bg-gradient-to-l" />
-          
-          {/* Platform Badge - Top Left */}
-          <Badge 
-            className={cn(
-              "absolute top-2 left-2 gap-1 cursor-pointer",
-              ad.platform === "telegram" ? "bg-blue-500 hover:bg-blue-600" : 
-              ad.platform === "eitaa" ? "bg-orange-500 hover:bg-orange-600" : 
-              ad.platform === "bale" ? "bg-green-500 hover:bg-green-600" : 
-              "bg-purple-500 hover:bg-purple-600"
-            )}
-            onClick={handlePlatformClick}
-          >
-            {getPlatformIcon()}
-            {platformLabel}
-          </Badge>
+    <Link to={`/ad/${ad.id}`} className="block">
+      <Card className="group overflow-hidden transition-all duration-300 hover:shadow-card-hover animate-fade-in">
+        <div className="flex flex-col sm:flex-row">
+          <div className="relative h-48 sm:h-auto sm:w-48 flex-shrink-0 overflow-hidden">
+            <img
+              src={ad.imageUrl || "/placeholder.svg"}
+              alt={ad.name}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent sm:bg-gradient-to-l" />
+            
+            {/* Platform Badge - Top Left */}
+            <Badge 
+              className={cn(
+                "absolute top-2 left-2 gap-1 cursor-pointer",
+                ad.platform === "telegram" ? "bg-blue-500 hover:bg-blue-600" : 
+                ad.platform === "eitaa" ? "bg-orange-500 hover:bg-orange-600" : 
+                ad.platform === "bale" ? "bg-green-500 hover:bg-green-600" : 
+                "bg-purple-500 hover:bg-purple-600"
+              )}
+              onClick={handlePlatformClick}
+            >
+              <PlatformLogo platform={ad.platform} size={14} />
+              {getPlatformName(ad.platform)}
+            </Badge>
 
-          {/* Ad Type Badge - Top Right */}
-          <Badge 
-            className={cn(
-              "absolute top-2 right-2 gap-1",
-              ad.adType === "channel" ? "bg-primary" : "bg-secondary text-secondary-foreground"
-            )}
-          >
-            {ad.adType === "channel" ? (
-              <>
-                <Radio className="h-3 w-3" />
-                کانال
-              </>
-            ) : (
-              <>
-                <MessageCircle className="h-3 w-3" />
-                گروه
-              </>
-            )}
-          </Badge>
-        </div>
+            {/* Ad Type Badge - Top Right */}
+            <Badge 
+              className={cn(
+                "absolute top-2 right-2 gap-1",
+                ad.adType === "channel" ? "bg-primary" : "bg-secondary text-secondary-foreground"
+              )}
+            >
+              {ad.adType === "channel" ? (
+                <>
+                  <Radio className="h-3 w-3" />
+                  کانال
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-3 w-3" />
+                  گروه
+                </>
+              )}
+            </Badge>
+          </div>
 
         <div className="flex flex-1 flex-col">
           <CardHeader className="pb-2">
@@ -326,29 +295,17 @@ const handleCategoryClick = (e: React.MouseEvent) => {
               </Badge>
             ))}
 
-            <div className="mr-auto flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCopyLink}
-                className={cn(
-                  "gap-1 text-xs",
-                  copied && "text-success"
-                )}
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? "کپی شد" : "کپی لینک"}
-              </Button>
-              <Button size="sm" asChild className="gap-1 text-xs" onClick={handleVisit}>
-                <a href={ad.telegramLink} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  بازدید
-                </a>
-              </Button>
-            </div>
+            <Button
+              variant="default"
+              size="sm"
+              className="mr-auto gap-1 text-xs"
+            >
+              مشاهده جزئیات
+            </Button>
           </CardFooter>
         </div>
       </div>
     </Card>
+  </Link>
   );
 }
