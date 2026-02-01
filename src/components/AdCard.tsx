@@ -299,6 +299,11 @@ export function AdCard({ ad }: AdCardProps) {
               variant="default"
               size="sm"
               className="mr-auto gap-1 text-xs"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/ad/${ad.id}`);
+              }}
             >
               مشاهده جزئیات
             </Button>
