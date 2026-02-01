@@ -9,12 +9,14 @@ import {
   Loader2, 
   MessageCircle,
   ExternalLink,
-  Clock
+  Clock,
+  Image
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,13 +33,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { getUserAds, deleteAd } from "@/lib/ads";
 import { RankedAd } from "@/lib/types";
 import { CATEGORIES } from "@/lib/constants";
+import { useUserRole } from "@/hooks/useUserRole";
+import { BannerManagement } from "@/components/dashboard/BannerManagement";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isAdmin, isModerator } = useUserRole();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("ads");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -119,57 +125,86 @@ export default function Dashboard() {
           </CardHeader>
         </Card>
 
-        {/* Ads Section */}
-        <Card className="shadow-card">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-xl">آگهی‌های من</CardTitle>
-              <CardDescription>{ads.length} آگهی ثبت شده</CardDescription>
-            </div>
-            <Button asChild className="gap-2">
-              <Link to="/submit-ad">
-                <PlusCircle className="h-4 w-4" />
-                ثبت آگهی جدید
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : ads.length === 0 ? (
-              <div className="text-center py-12 space-y-4">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                  <MessageCircle className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-medium text-lg">هنوز آگهی ثبت نکرده‌اید</h3>
-                  <p className="text-muted-foreground">
-                    اولین آگهی خود را ثبت کنید و کانال یا گروه تلگرام خود را معرفی کنید.
-                  </p>
+        {/* Tabs Section */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="ads" className="gap-2">
+              <MessageCircle className="h-4 w-4" />
+              آگهی‌های من
+            </TabsTrigger>
+            {(isAdmin || isModerator) && (
+              <TabsTrigger value="banners" className="gap-2">
+                <Image className="h-4 w-4" />
+                بنرهای تبلیغاتی
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          {/* Ads Tab */}
+          <TabsContent value="ads">
+            <Card className="shadow-card">
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle className="text-xl">آگهی‌های من</CardTitle>
+                  <CardDescription>{ads.length} آگهی ثبت شده</CardDescription>
                 </div>
                 <Button asChild className="gap-2">
                   <Link to="/submit-ad">
                     <PlusCircle className="h-4 w-4" />
-                    ثبت آگهی
+                    ثبت آگهی جدید
                   </Link>
                 </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {ads.map((ad) => (
-                  <AdListItem 
-                    key={ad.id} 
-                    ad={ad} 
-                    onDelete={handleDelete}
-                    isDeleting={deletingId === ad.id}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : ads.length === 0 ? (
+                  <div className="text-center py-12 space-y-4">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                      <MessageCircle className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="font-medium text-lg">هنوز آگهی ثبت نکرده‌اید</h3>
+                      <p className="text-muted-foreground">
+                        اولین آگهی خود را ثبت کنید و کانال یا گروه تلگرام خود را معرفی کنید.
+                      </p>
+                    </div>
+                    <Button asChild className="gap-2">
+                      <Link to="/submit-ad">
+                        <PlusCircle className="h-4 w-4" />
+                        ثبت آگهی
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {ads.map((ad) => (
+                      <AdListItem 
+                        key={ad.id} 
+                        ad={ad} 
+                        onDelete={handleDelete}
+                        isDeleting={deletingId === ad.id}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Banners Tab - Admin/Moderator Only */}
+          {(isAdmin || isModerator) && (
+            <TabsContent value="banners">
+              <Card className="shadow-card">
+                <CardContent className="pt-6">
+                  <BannerManagement />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
     </main>
   );
