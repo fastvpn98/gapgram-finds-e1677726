@@ -221,9 +221,12 @@ function mapDbAdToRankedAd(dbAd: {
 }
 
 export async function getAds(): Promise<RankedAd[]> {
+  // Only fetch approved ads that are not deleted for public display
   const { data, error } = await supabase
     .from("ads")
     .select("*")
+    .eq("is_approved", true)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -237,6 +240,8 @@ export async function getAds(): Promise<RankedAd[]> {
     const { data: seededData } = await supabase
       .from("ads")
       .select("*")
+      .eq("is_approved", true)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
     return (seededData || []).map(mapDbAdToRankedAd);
   }
