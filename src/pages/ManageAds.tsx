@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Trash2, Edit, Loader2, ExternalLink, MessageCircle, RotateCcw } from "lucide-react";
+import { Search, Trash2, Edit, Loader2, ExternalLink, MessageCircle, RotateCcw, Check, X, CheckSquare, Square } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,10 +57,12 @@ export default function ManageAds() {
   const [deletedAds, setDeletedAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("active");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -79,6 +82,11 @@ export default function ManageAds() {
       fetchAds();
     }
   }, [canApproveAds]);
+
+  // Clear selection when tab changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeTab]);
 
   const fetchAds = async () => {
     try {
@@ -112,6 +120,26 @@ export default function ManageAds() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = (ads: Ad[]) => {
+    setSelectedIds(new Set(ads.map(ad => ad.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
   };
 
   const softDeleteAd = async (adId: string) => {
@@ -186,6 +214,124 @@ export default function ManageAds() {
     }
   };
 
+  // Bulk operations
+  const bulkUpdateStatus = async (status: "approved" | "rejected") => {
+    if (selectedIds.size === 0) return;
+    
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("ads")
+        .update({ 
+          status, 
+          is_approved: status === "approved" 
+        })
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast({
+        title: status === "approved" ? "تأیید شدند" : "رد شدند",
+        description: `${selectedIds.size} آگهی با موفقیت ${status === "approved" ? "تأیید" : "رد"} شدند`,
+      });
+
+      // Update local state
+      setActiveAds(prev => prev.map(ad => 
+        selectedIds.has(ad.id) 
+          ? { ...ad, status, is_approved: status === "approved" } 
+          : ad
+      ));
+      
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+    } catch (error) {
+      console.error("Error updating ads:", error);
+      toast({
+        title: "خطا",
+        description: "خطا در به‌روزرسانی آگهی‌ها",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const bulkSoftDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("ads")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast({
+        title: "حذف شدند",
+        description: `${selectedIds.size} آگهی با موفقیت حذف شدند`,
+      });
+
+      // Move ads from active to deleted
+      const deletedItems = activeAds.filter(ad => selectedIds.has(ad.id))
+        .map(ad => ({ ...ad, deleted_at: new Date().toISOString() }));
+      
+      setActiveAds(prev => prev.filter(ad => !selectedIds.has(ad.id)));
+      setDeletedAds(prev => [...deletedItems, ...prev]);
+      
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+    } catch (error) {
+      console.error("Error deleting ads:", error);
+      toast({
+        title: "خطا",
+        description: "خطا در حذف آگهی‌ها",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const bulkRestore = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setBulkProcessing(true);
+    try {
+      const { error } = await supabase
+        .from("ads")
+        .update({ deleted_at: null })
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast({
+        title: "بازیابی شدند",
+        description: `${selectedIds.size} آگهی با موفقیت بازیابی شدند`,
+      });
+
+      // Move ads from deleted to active
+      const restoredItems = deletedAds.filter(ad => selectedIds.has(ad.id))
+        .map(ad => ({ ...ad, deleted_at: null }));
+      
+      setDeletedAds(prev => prev.filter(ad => !selectedIds.has(ad.id)));
+      setActiveAds(prev => [...restoredItems, ...prev]);
+      
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+    } catch (error) {
+      console.error("Error restoring ads:", error);
+      toast({
+        title: "خطا",
+        description: "خطا در بازیابی آگهی‌ها",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   const filterAds = (ads: Ad[]) => {
     return ads.filter((ad) => {
       const matchesSearch = ad.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,6 +344,10 @@ export default function ManageAds() {
 
   const filteredActiveAds = filterAds(activeAds);
   const filteredDeletedAds = filterAds(deletedAds);
+
+  const currentAds = activeTab === "active" ? filteredActiveAds : filteredDeletedAds;
+  const allSelected = currentAds.length > 0 && currentAds.every(ad => selectedIds.has(ad.id));
+  const someSelected = selectedIds.size > 0;
 
   if (authLoading || roleLoading || loading) {
     return (
@@ -269,16 +419,180 @@ export default function ManageAds() {
             </CardContent>
           </Card>
 
+          {/* Bulk Actions Bar */}
+          {currentAds.length > 0 && (
+            <Card className="mb-4">
+              <CardContent className="py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => allSelected ? deselectAll() : selectAll(currentAds)}
+                    className="gap-2"
+                  >
+                    {allSelected ? (
+                      <>
+                        <CheckSquare className="h-4 w-4" />
+                        لغو انتخاب همه
+                      </>
+                    ) : (
+                      <>
+                        <Square className="h-4 w-4" />
+                        انتخاب همه
+                      </>
+                    )}
+                  </Button>
+
+                  {someSelected && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedIds.size} آگهی انتخاب شده
+                      </span>
+                      
+                      {activeTab === "active" && (
+                        <>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                disabled={bulkProcessing}
+                                className="gap-2"
+                              >
+                                <Check className="h-4 w-4" />
+                                تأیید انتخاب شده‌ها
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>تأیید آگهی‌ها</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  آیا مطمئن هستید که می‌خواهید {selectedIds.size} آگهی را تأیید کنید؟
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => bulkUpdateStatus("approved")}>
+                                  تأیید
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={bulkProcessing}
+                                className="gap-2"
+                              >
+                                <X className="h-4 w-4" />
+                                رد انتخاب شده‌ها
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>رد آگهی‌ها</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  آیا مطمئن هستید که می‌خواهید {selectedIds.size} آگهی را رد کنید؟
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => bulkUpdateStatus("rejected")}
+                                  className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                                >
+                                  رد کردن
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={bulkProcessing}
+                                className="gap-2"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                حذف انتخاب شده‌ها
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>حذف آگهی‌ها</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  آیا مطمئن هستید که می‌خواهید {selectedIds.size} آگهی را حذف کنید؟
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={bulkSoftDelete}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  حذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
+
+                      {activeTab === "deleted" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              disabled={bulkProcessing}
+                              className="gap-2"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                              بازیابی انتخاب شده‌ها
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>بازیابی آگهی‌ها</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                آیا مطمئن هستید که می‌خواهید {selectedIds.size} آگهی را بازیابی کنید؟
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>انصراف</AlertDialogCancel>
+                              <AlertDialogAction onClick={bulkRestore}>
+                                بازیابی
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+
+                      {bulkProcessing && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Active Ads Tab */}
           <TabsContent value="active">
             <div className="text-sm text-muted-foreground mb-4">
-              {filteredActiveAds.length} آگهی فعال
+              {filteredActiveAds.length} آگهی
             </div>
             <div className="space-y-4">
               {filteredActiveAds.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
-                    آگهی فعالی یافت نشد
+                    آگهی‌ای یافت نشد
                   </CardContent>
                 </Card>
               ) : (
@@ -289,6 +603,8 @@ export default function ManageAds() {
                     onDelete={() => softDeleteAd(ad.id)}
                     processing={processing === ad.id}
                     isDeleted={false}
+                    isSelected={selectedIds.has(ad.id)}
+                    onToggleSelect={() => toggleSelect(ad.id)}
                   />
                 ))
               )}
@@ -315,6 +631,8 @@ export default function ManageAds() {
                     onRestore={() => restoreAd(ad.id)}
                     processing={processing === ad.id}
                     isDeleted={true}
+                    isSelected={selectedIds.has(ad.id)}
+                    onToggleSelect={() => toggleSelect(ad.id)}
                   />
                 ))
               )}
@@ -332,16 +650,39 @@ interface AdManageCardProps {
   onRestore?: () => void;
   processing: boolean;
   isDeleted: boolean;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }
 
-function AdManageCard({ ad, onDelete, onRestore, processing, isDeleted }: AdManageCardProps) {
+function AdManageCard({ ad, onDelete, onRestore, processing, isDeleted, isSelected, onToggleSelect }: AdManageCardProps) {
   const category = CATEGORIES.find((c) => c.value === ad.category);
   const CategoryIcon = category?.icon || MessageCircle;
 
+  const getStatusBadge = () => {
+    switch (ad.status) {
+      case "approved":
+        return <Badge variant="default">تأیید شده</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">رد شده</Badge>;
+      case "pending":
+      default:
+        return <Badge variant="secondary">در انتظار</Badge>;
+    }
+  };
+
   return (
-    <Card className={isDeleted ? "opacity-75" : ""}>
+    <Card className={`${isDeleted ? "opacity-75" : ""} ${isSelected ? "ring-2 ring-primary" : ""}`}>
       <CardContent className="p-4">
         <div className="flex gap-4">
+          {/* Checkbox */}
+          <div className="flex items-center">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onToggleSelect}
+              className="h-5 w-5"
+            />
+          </div>
+
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-1">
@@ -357,21 +698,7 @@ function AdManageCard({ ad, onDelete, onRestore, processing, isDeleted }: AdMana
                   <span className="text-muted-foreground">
                     {ad.members?.toLocaleString("fa-IR")} عضو
                   </span>
-                  <Badge
-                    variant={
-                      ad.status === "approved"
-                        ? "default"
-                        : ad.status === "rejected"
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
-                    {ad.status === "approved"
-                      ? "تأیید شده"
-                      : ad.status === "rejected"
-                      ? "رد شده"
-                      : "در انتظار"}
-                  </Badge>
+                  {getStatusBadge()}
                   {isDeleted && (
                     <Badge variant="destructive">حذف شده</Badge>
                   )}
