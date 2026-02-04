@@ -158,8 +158,8 @@ const { data, error } = await supabase.from('ads').insert({
         members: ad.members || 0,
         image_url: ad.imageUrl || null,
         cities: ad.cities || [],
-        is_approved: true,
-        status: 'active',
+        is_approved: false,
+        status: 'pending',
       }).select();
 
       if (error) {
@@ -211,8 +211,8 @@ const adsToInsert = publishQueue.map(ad => ({
         members: ad.members || 0,
         image_url: ad.imageUrl || null,
         cities: ad.cities || [],
-        is_approved: true,
-        status: 'active',
+        is_approved: false,
+        status: 'pending',
       }));
 
       console.log('Inserting ads:', adsToInsert);

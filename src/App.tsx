@@ -12,10 +12,9 @@ import SubmitAd from "./pages/SubmitAd";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import EditAd from "./pages/EditAd";
-import AdminPanel from "./pages/AdminPanel";
+import UnifiedAdminPanel from "./pages/UnifiedAdminPanel";
 import Analytics from "./pages/Analytics";
 import ManageRoles from "./pages/ManageRoles";
-import ManageAds from "./pages/ManageAds";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
 import TelegramScraper from "./pages/TelegramScraper";
@@ -42,10 +41,10 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/edit-ad/:id" element={<EditAd />} />
-                <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/admin" element={<UnifiedAdminPanel />} />
+                <Route path="/manage-ads" element={<UnifiedAdminPanel />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/manage-roles" element={<ManageRoles />} />
-                <Route path="/manage-ads" element={<ManageAds />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/change-password" element={<ChangePassword />} />
                 <Route path="/telegram-scraper" element={<TelegramScraper />} />
