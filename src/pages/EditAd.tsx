@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowRight, Upload, X, MessageCircle, Radio } from "lucide-react";
+import { Loader2, ArrowRight, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,20 +17,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { getAdById, updateAd } from "@/lib/ads";
-import { CATEGORIES, PROVINCES, TAGS, AGE_GROUPS } from "@/lib/constants";
+import { AGE_GROUPS, PROVINCES, TAGS } from "@/lib/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { PlatformSelector, AdTypeSelector, CategorySelector, ProvinceSelector } from "@/components/form";
 
 const editAdSchema = z.object({
   adType: z.enum(["group", "channel"]),
@@ -228,46 +222,15 @@ export default function EditAd() {
                 <FormField
                   control={form.control}
                   name="adType"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel className="text-lg font-semibold">نوع آگهی</FormLabel>
+                  render={({ field, fieldState }) => (
+                    <FormItem>
                       <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
+                        <AdTypeSelector
                           value={field.value}
-                          className="flex gap-4"
-                        >
-                          <div className="flex-1">
-                            <RadioGroupItem 
-                              value="group" 
-                              id="edit-type-group" 
-                              className="peer sr-only" 
-                            />
-                            <Label 
-                              htmlFor="edit-type-group" 
-                              className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                            >
-                              <MessageCircle className="h-8 w-8 mb-2" />
-                              <span className="font-medium">گروه</span>
-                            </Label>
-                          </div>
-                          <div className="flex-1">
-                            <RadioGroupItem 
-                              value="channel" 
-                              id="edit-type-channel" 
-                              className="peer sr-only" 
-                            />
-                            <Label 
-                              htmlFor="edit-type-channel" 
-                              className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                            >
-                              <Radio className="h-8 w-8 mb-2" />
-                              <span className="font-medium">کانال</span>
-                            </Label>
-                          </div>
-                        </RadioGroup>
+                          onChange={field.onChange}
+                          error={fieldState.error?.message}
+                        />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -308,24 +271,15 @@ export default function EditAd() {
                   <FormField
                     control={form.control}
                     name="category"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>دسته‌بندی</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="انتخاب دسته‌بندی" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {CATEGORIES.filter(c => c.value !== "all").map((cat) => (
-                              <SelectItem key={cat.value} value={cat.value}>
-                                {cat.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
+                        <FormControl>
+                          <CategorySelector
+                            value={field.value}
+                            onChange={field.onChange}
+                            error={fieldState.error?.message}
+                          />
+                        </FormControl>
                       </FormItem>
                     )}
                   />

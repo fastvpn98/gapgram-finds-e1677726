@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Plus, X, Users, MessageCircle, Radio, Image, Send, MessageSquare } from "lucide-react";
+import { Loader2, Plus, X, Users, Image } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,13 +12,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -29,8 +22,9 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { CATEGORIES, PROVINCES, AGE_GROUPS, PLATFORMS } from "@/lib/constants";
+import { AGE_GROUPS, PLATFORMS } from "@/lib/constants";
 import { addAd } from "@/lib/ads";
+import { PlatformSelector, AdTypeSelector, CategorySelector, ProvinceSelector } from "@/components/form";
 
 const MAX_DESCRIPTION_LENGTH = 300;
 const MAX_TAGS = 5;
@@ -92,7 +86,7 @@ export function AdSubmissionForm() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-const form = useForm<FormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       platform: undefined,
@@ -112,11 +106,10 @@ const form = useForm<FormData>({
     },
   });
 
-const watchText = form.watch("text");
+  const watchText = form.watch("text");
   const watchProvinceTarget = form.watch("provinceTarget");
   const watchAgeTarget = form.watch("ageTarget");
   const watchTags = form.watch("tags");
-  const watchCategory = form.watch("category");
   const watchAdType = form.watch("adType");
   const watchPlatform = form.watch("platform");
 
@@ -145,7 +138,6 @@ const watchText = form.watch("text");
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "خطا",
@@ -155,7 +147,6 @@ const watchText = form.watch("text");
       return;
     }
 
-    // Check file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: "خطا",
@@ -226,7 +217,6 @@ const watchText = form.watch("text");
 
     setIsSubmitting(true);
     try {
-      // Upload image if selected
       let imageUrl: string | undefined;
       if (imageFile) {
         const uploadedUrl = await uploadImage();
@@ -245,7 +235,7 @@ const watchText = form.watch("text");
           ? ["all"]
           : data.selectedAgeGroups;
 
-const result = await addAd({
+      const result = await addAd({
         platform: data.platform,
         adType: data.adType,
         category: data.category,
@@ -281,96 +271,39 @@ const result = await addAd({
     }
   };
 
-  const selectedCategory = CATEGORIES.find((c) => c.value === watchCategory);
-
-return (
+  return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Platform Selection - FIRST QUESTION */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* Platform Selection */}
         <FormField
           control={form.control}
           name="platform"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-lg font-semibold">پیام‌رسان *</FormLabel>
+          render={({ field, fieldState }) => (
+            <FormItem>
               <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="grid grid-cols-2 sm:grid-cols-4 gap-3"
-                >
-                  {PLATFORMS.map((platform) => (
-                    <div key={platform.value} className="flex-1">
-                      <RadioGroupItem 
-                        value={platform.value} 
-                        id={`platform-${platform.value}`} 
-                        className="peer sr-only" 
-                      />
-                      <Label 
-                        htmlFor={`platform-${platform.value}`} 
-                        className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                      >
-                        {platform.value === "telegram" && <Send className="h-6 w-6 mb-1" />}
-                        {platform.value === "eitaa" && <MessageSquare className="h-6 w-6 mb-1" />}
-                        {platform.value === "bale" && <MessageCircle className="h-6 w-6 mb-1" />}
-                        {platform.value === "rubika" && <Radio className="h-6 w-6 mb-1" />}
-                        <span className="font-medium text-sm">{platform.label}</span>
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
+                <PlatformSelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
               </FormControl>
-              <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Ad Type - SECOND QUESTION */}
+        {/* Ad Type */}
         <FormField
           control={form.control}
           name="adType"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-lg font-semibold">نوع آگهی *</FormLabel>
+          render={({ field, fieldState }) => (
+            <FormItem>
               <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="flex gap-4"
-                >
-                  <div className="flex-1">
-                    <RadioGroupItem 
-                      value="group" 
-                      id="type-group" 
-                      className="peer sr-only" 
-                    />
-                    <Label 
-                      htmlFor="type-group" 
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                    >
-                      <MessageCircle className="h-8 w-8 mb-2" />
-                      <span className="font-medium">گروه</span>
-                      <span className="text-xs text-muted-foreground mt-1">Group</span>
-                    </Label>
-                  </div>
-                  <div className="flex-1">
-                    <RadioGroupItem 
-                      value="channel" 
-                      id="type-channel" 
-                      className="peer sr-only" 
-                    />
-                    <Label 
-                      htmlFor="type-channel" 
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                    >
-                      <Radio className="h-8 w-8 mb-2" />
-                      <span className="font-medium">کانال</span>
-                      <span className="text-xs text-muted-foreground mt-1">Channel</span>
-                    </Label>
-                  </div>
-                </RadioGroup>
+                <AdTypeSelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
               </FormControl>
-              <FormMessage />
             </FormItem>
           )}
         />
@@ -379,32 +312,15 @@ return (
         <FormField
           control={form.control}
           name="category"
-          render={({ field }) => (
+          render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>دسته‌بندی *</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="انتخاب دسته‌بندی" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      <div className="flex items-center gap-2">
-                        <cat.icon className="h-4 w-4" />
-                        {cat.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedCategory && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  دسته‌بندی انتخاب شده: {selectedCategory.label}
-                </p>
-              )}
-              <FormMessage />
+              <FormControl>
+                <CategorySelector
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              </FormControl>
             </FormItem>
           )}
         />
@@ -415,11 +331,15 @@ return (
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
+              <FormLabel className="text-base font-semibold">
                 نام {watchAdType === "channel" ? "کانال" : watchAdType === "group" ? "گروه" : "گروه یا کانال"} *
               </FormLabel>
               <FormControl>
-                <Input placeholder="مثال: فروشگاه آنلاین دیجی‌کالا" {...field} />
+                <Input 
+                  placeholder="مثال: فروشگاه آنلاین دیجی‌کالا" 
+                  className="h-12 bg-card"
+                  {...field} 
+                />
               </FormControl>
               <p className="text-xs text-muted-foreground">۳ تا ۵۰ کاراکتر</p>
               <FormMessage />
@@ -433,11 +353,11 @@ return (
           name="text"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>توضیحات *</FormLabel>
+              <FormLabel className="text-base font-semibold">توضیحات *</FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="توضیحات آگهی خود را بنویسید... (حداقل ۲۰ کاراکتر)"
-                  className="min-h-[100px] resize-none"
+                  className="min-h-[120px] resize-none bg-card"
                   {...field}
                 />
               </FormControl>
@@ -452,18 +372,20 @@ return (
           )}
         />
 
-{/* Link */}
+        {/* Link */}
         <FormField
           control={form.control}
           name="telegramLink"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>لینک {watchPlatform ? PLATFORMS.find(p => p.value === watchPlatform)?.label : "پیام‌رسان"} *</FormLabel>
+              <FormLabel className="text-base font-semibold">
+                لینک {watchPlatform ? PLATFORMS.find(p => p.value === watchPlatform)?.label : "پیام‌رسان"} *
+              </FormLabel>
               <FormControl>
                 <Input
                   placeholder={watchPlatform === "telegram" ? "https://t.me/your_channel" : "لینک گروه یا کانال"}
                   dir="ltr"
-                  className="text-left"
+                  className="text-left h-12 bg-card"
                   {...field}
                 />
               </FormControl>
@@ -479,7 +401,7 @@ return (
           name="members"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>تعداد اعضا *</FormLabel>
+              <FormLabel className="text-base font-semibold">تعداد اعضا *</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Users className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -487,7 +409,7 @@ return (
                     type="number"
                     placeholder="مثال: 1000"
                     dir="ltr"
-                    className="text-left pr-10"
+                    className="text-left pr-10 h-12 bg-card"
                     {...field}
                   />
                 </div>
@@ -499,8 +421,8 @@ return (
 
         {/* Image Upload */}
         <div className="space-y-3">
-          <Label>تصویر آگهی (اختیاری)</Label>
-          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+          <Label className="text-base font-semibold">تصویر آگهی (اختیاری)</Label>
+          <div className="border-2 border-dashed rounded-xl p-4 text-center bg-card">
             <input
               ref={fileInputRef}
               type="file"
@@ -529,10 +451,10 @@ return (
             ) : (
               <label
                 htmlFor="ad-image-upload"
-                className="cursor-pointer flex flex-col items-center gap-2 py-4"
+                className="cursor-pointer flex flex-col items-center gap-2 py-6"
               >
-                <div className="p-3 rounded-full bg-muted">
-                  <Image className="h-6 w-6 text-muted-foreground" />
+                <div className="p-4 rounded-full bg-muted">
+                  <Image className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <span className="text-sm text-muted-foreground">
                   کلیک کنید یا تصویر را بکشید
@@ -551,63 +473,22 @@ return (
           name="provinceTarget"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>هدف‌گذاری استان</FormLabel>
               <FormControl>
-                <RadioGroup
-                  onValueChange={(value) => {
+                <ProvinceSelector
+                  targetType={field.value as "all" | "multiple"}
+                  onTargetTypeChange={(value) => {
                     field.onChange(value);
                     if (value === "all") {
                       form.setValue("selectedProvinces", []);
                     }
                   }}
-                  defaultValue={field.value}
-                  className="flex flex-wrap gap-4"
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="all" id="province-all" />
-                    <Label htmlFor="province-all" className="cursor-pointer">همه استان‌ها</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="multiple" id="province-multiple" />
-                    <Label htmlFor="province-multiple" className="cursor-pointer">انتخاب استان</Label>
-                  </div>
-                </RadioGroup>
+                  selectedProvinces={form.watch("selectedProvinces")}
+                  onProvincesChange={(provinces) => form.setValue("selectedProvinces", provinces)}
+                />
               </FormControl>
             </FormItem>
           )}
         />
-
-        {watchProvinceTarget === "multiple" && (
-          <FormField
-            control={form.control}
-            name="selectedProvinces"
-            render={({ field }) => (
-              <FormItem>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-64 overflow-y-auto p-2 border rounded-lg">
-                  {PROVINCES.map((province) => (
-                    <label
-                      key={province.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border p-2 transition-colors hover:bg-secondary"
-                    >
-                      <Checkbox
-                        checked={field.value.includes(province.value)}
-                        onCheckedChange={(checked) => {
-                          field.onChange(
-                            checked
-                              ? [...field.value, province.value]
-                              : field.value.filter((v) => v !== province.value)
-                          );
-                        }}
-                      />
-                      <span className="text-sm">{province.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
 
         {/* Age Targeting */}
         <FormField
@@ -615,7 +496,7 @@ return (
           name="ageTarget"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>مخاطبان</FormLabel>
+              <Label className="text-base font-semibold">مخاطبان</Label>
               <FormControl>
                 <RadioGroup
                   onValueChange={(value) => {
@@ -626,8 +507,8 @@ return (
                       form.setValue("maxAge", null);
                     }
                   }}
-                  defaultValue={field.value}
-                  className="flex flex-wrap gap-4"
+                  value={field.value}
+                  className="flex flex-wrap gap-4 mt-2"
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="all" id="age-all" />
@@ -657,7 +538,7 @@ return (
                   {AGE_GROUPS.map((age) => (
                     <label
                       key={age.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border p-2 transition-colors hover:bg-secondary"
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-accent/50"
                     >
                       <Checkbox
                         checked={field.value.includes(age.value)}
@@ -692,6 +573,7 @@ return (
                       type="number"
                       placeholder="۱۳"
                       dir="ltr"
+                      className="h-12 bg-card"
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -711,6 +593,7 @@ return (
                       type="number"
                       placeholder="۶۵"
                       dir="ltr"
+                      className="h-12 bg-card"
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -724,11 +607,12 @@ return (
 
         {/* Tags */}
         <div className="space-y-3">
-          <Label>برچسب‌ها (حداکثر {MAX_TAGS})</Label>
+          <Label className="text-base font-semibold">برچسب‌ها (حداکثر {MAX_TAGS})</Label>
 
           <div className="flex gap-2">
             <Input
               placeholder="برچسب جدید..."
+              className="h-12 bg-card"
               value={customTag}
               onChange={(e) => setCustomTag(e.target.value)}
               onKeyDown={(e) => {
@@ -738,7 +622,7 @@ return (
                 }
               }}
             />
-            <Button type="button" variant="outline" onClick={handleAddTag}>
+            <Button type="button" variant="outline" size="lg" onClick={handleAddTag}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -746,7 +630,7 @@ return (
           {watchTags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {watchTags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="gap-1 pl-1">
+                <Badge key={tag} variant="secondary" className="gap-1 pl-1 py-1.5 text-sm">
                   {tag}
                   <button
                     type="button"
@@ -761,10 +645,10 @@ return (
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full h-12 text-base" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               در حال ثبت...
             </>
           ) : (
