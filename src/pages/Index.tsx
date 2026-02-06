@@ -198,13 +198,13 @@ return result;
         <div className="container py-4 space-y-4">
 {/* Type Toggle + Platform Filter + Filter Buttons */}
           <div className="rounded-xl border bg-card p-4 shadow-card">
-            {/* Platform Filter - NEW */}
+            {/* Platform Filter - Full Width Grid */}
             <h2 className="mb-4 font-bold text-foreground text-center">پیام‌رسان</h2>
-            <div className="flex flex-wrap justify-center gap-2 mb-4">
+            <div className="grid grid-cols-5 gap-2 mb-4">
               <Button
                 variant={platform === "all" ? "default" : "outline"}
                 size="sm"
-                className="gap-2"
+                className="w-full gap-2"
                 onClick={() => updateFilter("platform", "")}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -215,7 +215,7 @@ return result;
                   key={p.value}
                   variant={platform === p.value ? "default" : "outline"}
                   size="sm"
-                  className="gap-2"
+                  className="w-full gap-2"
                   onClick={() => updateFilter("platform", p.value)}
                 >
                   {getPlatformIcon(p.value)}
