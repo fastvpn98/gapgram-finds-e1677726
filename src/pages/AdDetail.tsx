@@ -203,12 +203,12 @@ export default function AdDetail() {
   return (
     <>
       <Helmet>
-        <title>{`${ad.name} | ${getPlatformName(ad.platform)} - گپ‌گرام`}</title>
+        <title>{`${ad.name} | ${getPlatformName(ad.platform)} - گپ‌تل`}</title>
         <meta name="description" content={ad.text.substring(0, 160)} />
         <meta name="keywords" content={`${ad.name}, ${getPlatformName(ad.platform)}, ${category?.label || ""}, گروه تلگرام, کانال`} />
         
         {/* Open Graph */}
-        <meta property="og:title" content={`${ad.name} | گپ‌گرام`} />
+        <meta property="og:title" content={`${ad.name} | گپ‌تل`} />
         <meta property="og:description" content={ad.text.substring(0, 160)} />
         <meta property="og:type" content="product" />
         <meta property="og:url" content={window.location.href} />

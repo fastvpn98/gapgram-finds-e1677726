@@ -47,7 +47,7 @@ export default function Auth() {
     setIsLoading(true);
     try {
       const { error } = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/auth`,
       });
       if (error) {
         toast({
@@ -339,7 +339,7 @@ export default function Auth() {
           </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold">
-              {isSignUp ? "ثبت‌نام در گپ‌گرام" : "ورود به گپ‌گرام"}
+              {isSignUp ? "ثبت‌نام در گپ‌تل" : "ورود به گپ‌تل"}
             </CardTitle>
             <CardDescription className="text-base">
               روش ورود خود را انتخاب کنید
@@ -591,7 +591,7 @@ export default function Auth() {
 
         <CardFooter className="flex flex-col gap-2 text-center">
           <p className="text-sm text-muted-foreground">
-            با ورود، شرایط استفاده از گپ‌گرام را می‌پذیرید.
+            با ورود، شرایط استفاده از گپ‌تل را می‌پذیرید.
           </p>
         </CardFooter>
       </Card>

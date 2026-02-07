@@ -38,7 +38,7 @@ export function WelcomeModal({ onEnter }: WelcomeModalProps) {
             <MessageCircle className="h-10 w-10 text-primary-foreground" />
           </div>
           <DialogTitle className="text-2xl font-bold">
-            به گپ‌گرام خوش آمدید! 
+            به گپ‌تل خوش آمدید! 
             <Sparkles className="inline-block h-5 w-5 mr-2 text-yellow-500" />
           </DialogTitle>
           <DialogDescription className="text-base leading-relaxed">
