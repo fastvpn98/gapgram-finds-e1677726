@@ -42,7 +42,7 @@ export default function SubmitAd() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">ثبت آگهی جدید</CardTitle>
             <CardDescription>
-              گروه یا کانال تلگرام خود را در گپ‌گرام ثبت کنید
+              گروه یا کانال تلگرام خود را در گپ‌تل ثبت کنید
             </CardDescription>
           </CardHeader>
           <CardContent>
