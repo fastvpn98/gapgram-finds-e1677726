@@ -67,7 +67,7 @@ export default function Auth() {
     }
   };
 
-  // OTP Sign In - Send Code
+  // OTP Sign In - Send Code via Edge Function
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -82,31 +82,36 @@ export default function Auth() {
 
     setOtpLoading(true);
     
-    const { error } = await supabase.auth.signInWithOtp({
-      email: otpEmail,
-      options: {
-        shouldCreateUser: true,
+    try {
+      const res = await supabase.functions.invoke("send-otp-email", {
+        body: { action: "send", email: otpEmail },
+      });
+
+      if (res.error || res.data?.error) {
+        toast({
+          title: "خطا در ارسال کد",
+          description: res.data?.error || "مشکلی در ارسال کد پیش آمد.",
+          variant: "destructive",
+        });
+      } else {
+        setOtpSent(true);
+        toast({
+          title: "کد ارسال شد ✉️",
+          description: "کد ۶ رقمی به ایمیل شما ارسال شد. لطفاً ایمیل خود را بررسی کنید.",
+        });
       }
-    });
-
-    setOtpLoading(false);
-
-    if (error) {
+    } catch (err) {
       toast({
-        title: "خطا در ارسال کد",
-        description: error.message,
+        title: "خطا",
+        description: "مشکلی در ارتباط با سرور پیش آمد.",
         variant: "destructive",
       });
-    } else {
-      setOtpSent(true);
-      toast({
-        title: "کد ارسال شد",
-        description: "لینک ورود به ایمیل شما ارسال شد. لطفاً ایمیل خود را بررسی کنید.",
-      });
     }
+
+    setOtpLoading(false);
   };
 
-  // OTP Verify Code
+  // OTP Verify Code via Edge Function
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -121,26 +126,46 @@ export default function Auth() {
 
     setOtpLoading(true);
     
-    const { error } = await supabase.auth.verifyOtp({
-      email: otpEmail,
-      token: otpCode,
-      type: "email",
-    });
+    try {
+      const res = await supabase.functions.invoke("send-otp-email", {
+        body: { action: "verify", email: otpEmail, code: otpCode },
+      });
 
-    setOtpLoading(false);
+      if (res.error || res.data?.error) {
+        toast({
+          title: "کد نادرست",
+          description: res.data?.error || "کد وارد شده صحیح نیست یا منقضی شده است.",
+          variant: "destructive",
+        });
+      } else if (res.data?.token_hash) {
+        // Use the token_hash to create a session
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: res.data.token_hash,
+          type: "magiclink",
+        });
 
-    if (error) {
+        if (verifyError) {
+          toast({
+            title: "خطا در ورود",
+            description: verifyError.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "ورود موفق ✅",
+            description: "خوش آمدید به گپ‌تل!",
+          });
+        }
+      }
+    } catch (err) {
       toast({
-        title: "کد نادرست",
-        description: "کد وارد شده صحیح نیست یا منقضی شده است.",
+        title: "خطا",
+        description: "مشکلی در ارتباط با سرور پیش آمد.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "ورود موفق",
-        description: "خوش آمدید!",
-      });
     }
+
+    setOtpLoading(false);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -510,7 +535,7 @@ export default function Auth() {
                   </div>
 
                   <p className="text-sm text-muted-foreground text-center">
-                    یک لینک ورود به ایمیل شما ارسال خواهد شد
+                    یک کد ۶ رقمی به ایمیل شما ارسال خواهد شد
                   </p>
 
                   <Button 
@@ -526,7 +551,7 @@ export default function Auth() {
                     ) : (
                       <>
                         <Mail className="h-5 w-5 ml-2" />
-                        ارسال لینک ورود
+                        ارسال کد ورود
                       </>
                     )}
                   </Button>
